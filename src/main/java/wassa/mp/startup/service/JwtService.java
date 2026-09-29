@@ -32,22 +32,17 @@ public class JwtService {
                 .and()
                 .signWith(genetedKey())
                 .compact();
-
     }
-
     private SecretKey genetedKey() {
         byte[] decode= Decoders.BASE64.decode(getSecretKey());
         return Keys.hmacShaKeyFor(decode);
     }
-
     public String getSecretKey(){
         return cleScret=  "bba20372a3a78e002274ba2a24866a5e377f480f4e04c38157613c908f5bcbd2";
     }
-
     public String extraUserName(String token) {
         return   extracClaims(token, Claims::getSubject);
     }
-
     private <T> T extracClaims(String token, Function<Claims,T> claimsResolver) {
         Claims claims=extractClaims(token);
         return claimsResolver.apply(claims);
@@ -56,17 +51,14 @@ public class JwtService {
     private Claims extractClaims(String token) {
          return Jwts.parser().verifyWith(genetedKey()).build().parseSignedClaims(token).getPayload();
     }
-
     public boolean isTokenValid(String token, UserDetails userDetails) {
         final String userName = extraUserName(token);
 
         return (userName.equals(userDetails.getUsername())&& !isTokenExpired(token) );
     }
-
     private boolean isTokenExpired(String token) {
         return extracExpiration(token).before(new Date());
     }
-
     private Date extracExpiration(String token) {
         return extracClaims(token, Claims::getExpiration);
     }
