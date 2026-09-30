@@ -5,7 +5,7 @@ import org.springframework.security.authentication.UsernamePasswordAuthenticatio
 import org.springframework.security.core.Authentication;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
-import wassa.mp.startup.dto.UserRequestDto;
+import wassa.mp.startup.dto.UserLoginRequestDto;
 import wassa.mp.startup.model.User;
 import wassa.mp.startup.repository.UserRepository;
 
@@ -23,6 +23,7 @@ public class UserService {
         this.authenticationManager = authenticationManager;
         this.jwtService = jwtService;
     }
+    /*
     public User register(UserRequestDto user){
         User userEntity = new User();
         userEntity.setNom(user.getNom());
@@ -30,20 +31,14 @@ public class UserService {
         userEntity.setPassword(bCryptPasswordEncoder.encode(user.getPassword()));
         return  userRepository.save(userEntity);
     }
-    public String login(UserRequestDto user){
-        User user1=userRepository.findByNom(user.getNom());
-        if(!Objects.isNull(user1)){
-            return  "connection effectué avzc suvcces ";
-        }
-        return  "errer";
 
+     */
 
-    }
-    public String verify(UserRequestDto user) {
+    public String login (UserLoginRequestDto user) {
           Authentication authentication= authenticationManager.authenticate(
-            new UsernamePasswordAuthenticationToken(user.getNom(), user.getPassword())
+            new UsernamePasswordAuthenticationToken(user.getEmail(), user.getPassword())
         );
-        User user1=userRepository.findByNom(user.getNom());
+        User user1=userRepository.findByEmail(user.getEmail());
         if(authentication.isAuthenticated()){
             return  jwtService.generetedToken(user1);
         }

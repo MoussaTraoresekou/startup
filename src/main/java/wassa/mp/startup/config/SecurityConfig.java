@@ -32,7 +32,7 @@ public class SecurityConfig {
                 .csrf(csrf -> csrf.disable())
                 .authorizeHttpRequests(
                         request -> request
-                                .requestMatchers("/user/register","/user/login").permitAll()
+                                .requestMatchers("/user/register","/user/login","/porteur/register").permitAll()
                                 .anyRequest().authenticated()
                 )
                 .httpBasic(Customizer.withDefaults())
@@ -40,16 +40,6 @@ public class SecurityConfig {
         ;
         return  httpSecurity.build();
 
-    }
-    //@Bean
-    public UserDetailsService userDetailsService(){
-        UserDetails startup= User.withUsername("startup")
-                .password("{noop}soukouna_moussa")
-                .roles("user").build();
-        UserDetails sekou= User.withUsername("traore")
-                .password("soukouna_sekou")
-                .roles("user").build();
-        return  new InMemoryUserDetailsManager(startup,sekou);
     }
     @Bean
     public BCryptPasswordEncoder bCryptPasswordEncoder(){

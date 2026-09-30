@@ -1,4 +1,8 @@
 package wassa.mp.startup.model;
 
-public class Admin {
+import jakarta.persistence.Entity;
+
+@Entity
+public class Admin extends User {
+
 }

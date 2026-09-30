@@ -7,15 +7,14 @@ import lombok.NoArgsConstructor;
 import wassa.mp.startup.Enumeration.TypeEtapes;
 
 import java.util.List;
-
 @Entity
 @AllArgsConstructor @NoArgsConstructor @Data
-public class Etapes {
+public class Etape {
     @Id
-    @GeneratedValue(strategy = GenerationType.AUTO)
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
     private int id;
     @Enumerated(EnumType.STRING)
     private TypeEtapes type;
-    @OneToMany(cascade = CascadeType.ALL,mappedBy = "etape")
+    @OneToMany(mappedBy = "etape")
     private List<ProjetEtape> projetEtapes;
 }
