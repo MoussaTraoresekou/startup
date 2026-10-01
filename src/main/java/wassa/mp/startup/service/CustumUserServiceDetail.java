@@ -20,8 +20,8 @@ public class CustumUserServiceDetail implements UserDetailsService {
     public UserDetails loadUserByUsername(String email) throws UsernameNotFoundException {
         User user=userRepository.findByEmail(email);
         if(Objects.isNull(user)){
-            System.out.println("user not found");
-              throw new UsernameNotFoundException(email);
+            //System.out.println("user not found");
+              throw new UsernameNotFoundException("Utilisateur introuvable");
         }
         return new CustumUserDetail(user);
     }

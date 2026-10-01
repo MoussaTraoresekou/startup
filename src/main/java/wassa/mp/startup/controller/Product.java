@@ -1,12 +1,14 @@
 package wassa.mp.startup.controller;
 
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.ArrayList;
 import java.util.List;
 
 @RestController
-@RequestMapping("/products")
+@RequestMapping("/api/porteur")
+@SecurityRequirement(name = "bearerAuth")
 public class Product {
     public record  produit(int id,String nom,double price){};
     public List<produit>produits= new  ArrayList<>(
@@ -18,12 +20,12 @@ public class Product {
             )
 
     );
-    @GetMapping
+    @GetMapping("/produits")
     public  List<produit>getProduits(){
         return produits;
 
     }
-    @PostMapping
+    @PostMapping("/produits")
     public produit addProduct(@RequestBody produit produitss){
            produits.add(produitss)   ;
            return  produitss;
