@@ -14,4 +14,6 @@ public class Question {
     private String libelle;
     @OneToOne
     private Reponse reponse;
+    @ManyToOne
+    private Etape etape;
 }

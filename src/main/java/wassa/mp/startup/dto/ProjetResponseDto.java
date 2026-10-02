@@ -11,4 +11,5 @@ public class ProjetResponseDto {
     private String description;
     private String pith_url;
     private String quota_propose;
+    private String secteur;
 }

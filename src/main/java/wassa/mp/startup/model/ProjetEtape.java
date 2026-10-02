@@ -16,7 +16,7 @@ public class ProjetEtape {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private int id;
     @Enumerated(EnumType.STRING)
-    private StatutEtapeEnum StatutEtape;
+    private StatutEtapeEnum statutEtape;
     private LocalDate dateSoumission=LocalDate.now();
     private LocalDate dateValidation;
     private String commentaireMentor;
