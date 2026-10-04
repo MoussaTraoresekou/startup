@@ -12,8 +12,6 @@ public class Question {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private int id;
     private String libelle;
-    @OneToOne
-    private Reponse reponse;
     @ManyToOne
     private Etape etape;
 }

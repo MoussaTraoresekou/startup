@@ -7,6 +7,7 @@ import lombok.NoArgsConstructor;
 import wassa.mp.startup.Enumeration.RoleEnum;
 
 import java.time.LocalDate;
+import java.util.List;
 
 @Entity
 @AllArgsConstructor @NoArgsConstructor @Data
@@ -27,5 +28,7 @@ public class User {
     private RoleEnum role;
     @Column(name = "date_creation")
     private LocalDate dateCreation=LocalDate.now();
+    @OneToMany(mappedBy = "user")
+    private List<Notification>notifications;
 
 }

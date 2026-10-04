@@ -21,4 +21,11 @@ public class GlobalExceptionHandler {
                 .status(HttpStatus.FORBIDDEN)
                 .body(error);
     }
+    @ExceptionHandler(OperationInterditeException.class)
+    public ResponseEntity<ErreurApi> handleEtapeIncomplete(OperationInterditeException ex) {
+        ErreurApi error = new ErreurApi(HttpStatus.BAD_REQUEST.value(), "ETAPE_INCOMPLETE", ex.getMessage());
+        return ResponseEntity
+                .status(HttpStatus.BAD_REQUEST)
+                .body(error);
+    }
 }

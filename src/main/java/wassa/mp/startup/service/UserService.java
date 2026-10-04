@@ -5,7 +5,9 @@ import org.springframework.security.authentication.UsernamePasswordAuthenticatio
 import org.springframework.security.core.Authentication;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
+import wassa.mp.startup.dto.LoginReponseDto;
 import wassa.mp.startup.dto.UserLoginRequestDto;
+import wassa.mp.startup.exception.OperationInterditeException;
 import wassa.mp.startup.model.User;
 import wassa.mp.startup.repository.UserRepository;
 
@@ -34,14 +36,15 @@ public class UserService {
 
      */
 
-    public String login (UserLoginRequestDto user) {
+    public LoginReponseDto login (UserLoginRequestDto user) {
           Authentication authentication= authenticationManager.authenticate(
             new UsernamePasswordAuthenticationToken(user.getEmail(), user.getPassword())
         );
         User user1=userRepository.findByEmail(user.getEmail());
-        if(authentication.isAuthenticated()){
-            return  jwtService.generetedToken(user1);
+        if(!authentication.isAuthenticated()){
+            throw  new OperationInterditeException("mot de passe ou email incorrect");
+
         }
-        return  "errer";
+        return  new LoginReponseDto(user1.getId(),jwtService.generetedToken(user1),user1.getRole().toString(), user1.getNom(), user1.getPrenom(), user1.getEmail());
     }
 }

@@ -13,7 +13,7 @@ public class Reponse {
     private  String reponse;
     @ManyToOne
     private ProjetEtape projetEtape;
-    @OneToOne(mappedBy = "reponse")
+    @ManyToOne
     private Question question;
 
 }

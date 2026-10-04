@@ -17,6 +17,6 @@ public class Etape {
     private TypeEtapes type;
     @OneToMany(mappedBy = "etape")
     private List<ProjetEtape> projetEtapes;
-    @OneToMany
+    @OneToMany(mappedBy = "etape")
     private List<Question> questions;
 }
