@@ -46,24 +46,19 @@ public class ResponseService {
                 () -> new ResourceNotFoundException("Le projet à cette etape n'existe pas")
         );
 
-        // 3. Sécurité métier : On vérifie que la question appartient bien à l'étape générale liée à ce ProjetEtape
         if (question.getEtape().getId() != projetEtape.getEtape().getId()) {
             throw new OperationInterditeException("Cette question n'appartient pas à l'étape en cours de ce projet.");
         }
         if (projetEtape.getStatutEtape() == StatutEtapeEnum.VALIDE) {
             throw new OperationInterditeException("Impossible de modifier votre réponse : cette étape a déjà été validée et clôturée.");
         }
-
-        // 4. Recherche d'une réponse existante pour ce couple (ProjetEtape, Question)
         Optional<Reponse> reponseExistante = reponseRepository.findByProjetEtapeIdAndQuestionId(etape_projet_id, question_id);
 
         if (reponseExistante.isPresent()) {
-            // CAS A : La réponse existe déjà, on la met à jour (Idempotence du PUT)
             Reponse reponseAModifier = reponseExistante.get();
             reponseAModifier.setReponse(reponseRequestDto.getReponse()); // Adaptez le getter selon votre DTO
             reponseRepository.save(reponseAModifier);
         } else {
-            // CAS B : C'est la première fois qu'on répond, on crée une nouvelle entité
             Reponse nouvelleReponse = new Reponse();
             nouvelleReponse.setReponse(reponseRequestDto.getReponse()); // Adaptez le getter selon votre DTO
             nouvelleReponse.setProjetEtape(projetEtape);

@@ -29,6 +29,8 @@ public class PorteurController {
     private ResponseService responseService;
     @Autowired
     private MentorProjetService mentorProjetService;
+    @Autowired
+    private SecteurActiviteService secteurActiviteService;
 
     @PostMapping("/register")
     public ResponseEntity<PorteurResponseDto> createPorteur(@RequestBody PorteurRequestDto porteurRequestDto) {
@@ -96,19 +98,14 @@ public class PorteurController {
                 .contentType(org.springframework.http.MediaType.TEXT_PLAIN)
                 .body(contenuFichier);
     }
-    /**
-     * Endpoint permettant au Porteur connecté d'inviter un Mentor spécifique à accompagner son projet.
-     * URL : POST http://localhost:8080/api/porteur/solliciter-mentor
-     */
+
     @PostMapping("/solliciter-mentor")
     public ResponseEntity<String> solliciterMentor(
             @Valid @RequestBody InvitationMentorDto invitationMentorDto,
             @AuthenticationPrincipal CustumUserDetail userConnecter) {
 
-        // Appel de la méthode de service pour le scénario B
         mentorProjetService.porteurSolliciteMentor(invitationMentorDto, userConnecter);
 
-        // Retourne un statut 201 CREATED avec un message de succès
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body("L'invitation a été envoyée avec succès. Le mentor a été notifié en temps réel.");
     }
@@ -119,10 +116,7 @@ public class PorteurController {
 
         return ResponseEntity.ok("La demande de mentorat a été acceptée avec succès.");
     }
-    /**
-     * Le Porteur refuse une demande venant d'un Mentor
-     * URL : PUT /api/porteur/mentor-projets/{id}/refuser
-     */
+
     @PutMapping("/mentor-projets/{id}/refuser")
     public ResponseEntity<String> porteurRefuserDemande(
             @PathVariable int id,
@@ -130,6 +124,13 @@ public class PorteurController {
         mentorProjetService.refuserDemandeMentorat(id, userConnecter);
         return ResponseEntity.ok("La demande de mentorat a été déclinée.");
     }
+    /*
+    @GetMapping("/secteurs")
+    public List<SecteurActiviteResponseDto> getSecteurActivites() {
+        return secteurActiviteService.getSecteurActivites();
+    }
+
+     */
 
 
 
