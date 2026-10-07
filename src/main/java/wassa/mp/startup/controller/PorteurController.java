@@ -9,6 +9,8 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 import wassa.mp.startup.CustumUserDetail;
 import wassa.mp.startup.dto.*;
+import wassa.mp.startup.model.Projet;
+import wassa.mp.startup.model.ProjetEtape;
 import wassa.mp.startup.service.*;
 
 import java.util.List;
@@ -38,11 +40,11 @@ public class PorteurController {
          return  ResponseEntity.status(HttpStatus.CREATED).body(porteurService.registerPorteur(porteurRequestDto));
     }
     @PostMapping("/projet")
-    public ResponseEntity<String> CreerProjet(@RequestBody ProjetRequestDto p,@AuthenticationPrincipal CustumUserDetail userConnecter){
+    public ResponseEntity<ProjetResponseDto> CreerProjet(@RequestBody ProjetRequestDto p,@AuthenticationPrincipal CustumUserDetail userConnecter){
         System.out.println("moussa");
         System.out.println(userConnecter.getUser().getEmail());
-        projetService.creaProjet(p,userConnecter);
-        return ResponseEntity.status(HttpStatus.CREATED).body("preojet cree avec succes!");
+        Projet projet =projetService.creaProjet(p,userConnecter);
+        return ResponseEntity.status(HttpStatus.CREATED).body(new ProjetResponseDto(projet.getId(), projet.getTitre(), projet.getDescription(), projet.getPith_url(), projet.getQuota_propose(), projet.getSecteurActivite().getNom()));
     }
     @GetMapping("/projets/{id}")
     public ProjetResponseDto getProjetByid(@PathVariable int id, @AuthenticationPrincipal CustumUserDetail userConnecter){
@@ -61,9 +63,11 @@ public class PorteurController {
         return  projetEtapeService.projetEtapeResponseDtoList(id,userConnecter);
     }
     @PostMapping("/projet-etapes/commencer")
-    public ResponseEntity<String>CommencerEtapes(@AuthenticationPrincipal CustumUserDetail userConnecter,@RequestBody ProjetEtapesRequestDto projetEtapesRequestDto){
-        projetEtapeService.commencerEtapes(projetEtapesRequestDto,userConnecter);
-        return ResponseEntity.status(HttpStatus.CREATED).body("etape commencée  avec succes!");
+    public ResponseEntity<ProjetEtapeResponseDto>CommencerEtapes(@AuthenticationPrincipal CustumUserDetail userConnecter,@RequestBody ProjetEtapesRequestDto projetEtapesRequestDto){
+        ProjetEtape projetEtape= projetEtapeService.commencerEtapes(projetEtapesRequestDto,userConnecter);
+        return ResponseEntity.status(HttpStatus.CREATED).body(
+                 new ProjetEtapeResponseDto(projetEtape.getId(),projetEtape.getStatutEtape(),projetEtape.getDateSoumission(),projetEtape.getDateValidation(),projetEtape.getCommentaireMentor(),projetEtape.getEtape().getType().toString(),"")
+        );
     }
     @GetMapping("/etapes/{id}/questions")
     public List<QuestionResponseDto> getQuestionByEtapeId(@PathVariable int id){

@@ -10,7 +10,7 @@ import wassa.mp.startup.model.Projet;
 import java.util.List;
 
 public interface ProjetRepository extends JpaRepository<Projet, Integer> {
-    @Query("SELECT p from Projet p where p.porteur.id=:porteur_id")
+    @Query("SELECT p from Projet p where p.porteur.id=:porteur_id order by p.id desc")
     List<Projet> findByPorteur(@Param("porteur_id") int porteur_id);
 
 

@@ -19,4 +19,5 @@ public class Etape {
     private List<ProjetEtape> projetEtapes;
     @OneToMany(mappedBy = "etape")
     private List<Question> questions;
+    private String description;
 }
