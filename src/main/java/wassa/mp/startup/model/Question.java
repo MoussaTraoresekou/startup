@@ -5,6 +5,8 @@ import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.util.List;
+
 @Entity
 @NoArgsConstructor @Data @AllArgsConstructor
 public class Question {
@@ -14,4 +16,5 @@ public class Question {
     private String libelle;
     @ManyToOne
     private Etape etape;
+
 }

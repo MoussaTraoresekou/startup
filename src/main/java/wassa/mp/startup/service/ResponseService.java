@@ -38,7 +38,7 @@ public class ResponseService {
 
     }
 
-    public void repondreunequestion(int etape_projet_id, int question_id, ReponseRequestDto reponseRequestDto) {
+    public Reponse repondreunequestion(int etape_projet_id, int question_id, ReponseRequestDto reponseRequestDto) {
         Question question = questionRepository.findById(question_id).orElseThrow(
                 () -> new ResourceNotFoundException("Cette question n'existe pas")
         );
@@ -57,14 +57,14 @@ public class ResponseService {
         if (reponseExistante.isPresent()) {
             Reponse reponseAModifier = reponseExistante.get();
             reponseAModifier.setReponse(reponseRequestDto.getReponse()); // Adaptez le getter selon votre DTO
-            reponseRepository.save(reponseAModifier);
+            return reponseRepository.save(reponseAModifier);
         } else {
             Reponse nouvelleReponse = new Reponse();
             nouvelleReponse.setReponse(reponseRequestDto.getReponse()); // Adaptez le getter selon votre DTO
             nouvelleReponse.setProjetEtape(projetEtape);
             nouvelleReponse.setQuestion(question);
 
-            reponseRepository.save(nouvelleReponse);
+            return reponseRepository.save(nouvelleReponse);
         }
     }
 

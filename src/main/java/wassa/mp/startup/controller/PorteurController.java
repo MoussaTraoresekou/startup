@@ -11,6 +11,7 @@ import wassa.mp.startup.CustumUserDetail;
 import wassa.mp.startup.dto.*;
 import wassa.mp.startup.model.Projet;
 import wassa.mp.startup.model.ProjetEtape;
+import wassa.mp.startup.model.Reponse;
 import wassa.mp.startup.service.*;
 
 import java.util.List;
@@ -70,19 +71,21 @@ public class PorteurController {
         );
     }
     @GetMapping("/etapes/{id}/questions")
-    public List<QuestionResponseDto> getQuestionByEtapeId(@PathVariable int id){
-        return questionService.getQuestionByEtape(id);
+    public List<QuestionResponseDto> getQuestionByEtapeId(@PathVariable("id") int etapeId, @RequestParam("projetId") int projetId) {
 
+        return questionService.getQuestionByEtape(etapeId, projetId);
     }
+
     @GetMapping("/projetEtape/{projet_etape_id}")
     public List<ReponseResponseDto> getReponseByEtapePorjet_id(@PathVariable int projet_etape_id){
        return  responseService.getReponseByEtapePorjet_id(projet_etape_id);
     }
     @PutMapping("/projetEtape/{projetEtapeId}/questions/{questionId}/repondre")
-    public ResponseEntity<String>RepondreUnequestionEtape(@PathVariable int projetEtapeId,@PathVariable int questionId,@RequestBody ReponseRequestDto reponseRequestDto){
-        responseService.repondreunequestion(projetEtapeId,questionId,reponseRequestDto);
+    public ResponseEntity<ReponseResponseDto>RepondreUnequestionEtape(@PathVariable int projetEtapeId,@PathVariable int questionId,@RequestBody ReponseRequestDto reponseRequestDto){
+        Reponse reponse=responseService.repondreunequestion(projetEtapeId,questionId,reponseRequestDto);
         return ResponseEntity.ok(
-                "question repondu avec succes"
+                new ReponseResponseDto(reponse.getId(), reponse.getProjetEtape().getProjet().getTitre(), reponse.getProjetEtape().getEtape().getType().toString(), reponse.getQuestion().getLibelle(), reponse.getReponse())
+
         );
     }
     @GetMapping("/projetEtape/{projetEtapeId}/telecharger-livrable")
@@ -122,9 +125,7 @@ public class PorteurController {
     }
 
     @PutMapping("/mentor-projets/{id}/refuser")
-    public ResponseEntity<String> porteurRefuserDemande(
-            @PathVariable int id,
-            @AuthenticationPrincipal CustumUserDetail userConnecter) {
+    public ResponseEntity<String> porteurRefuserDemande(@PathVariable int id,@AuthenticationPrincipal CustumUserDetail userConnecter) {
         mentorProjetService.refuserDemandeMentorat(id, userConnecter);
         return ResponseEntity.ok("La demande de mentorat a été déclinée.");
     }
