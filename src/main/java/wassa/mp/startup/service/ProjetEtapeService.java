@@ -10,6 +10,7 @@ import wassa.mp.startup.dto.ProjetEtapesRequestDto;
 import wassa.mp.startup.exception.OperationInterditeException;
 import wassa.mp.startup.exception.NonAutoriseException;
 import wassa.mp.startup.exception.ResourceNotFoundException;
+import wassa.mp.startup.model.Etape;
 import wassa.mp.startup.model.Projet;
 import wassa.mp.startup.model.ProjetEtape;
 import wassa.mp.startup.model.Reponse;
@@ -19,6 +20,7 @@ import wassa.mp.startup.repository.ProjetRepository;
 
 import java.nio.charset.StandardCharsets;
 import java.util.List;
+import java.util.Optional;
 
 @Service
 public class ProjetEtapeService {
@@ -42,6 +44,7 @@ public class ProjetEtapeService {
                  )
         ).toList();
     }
+    /*
     public ProjetEtape commencerEtapes(ProjetEtapesRequestDto projetEtapesRequestDto,@AuthenticationPrincipal CustumUserDetail userConnecter) {
         Projet projet=projetRepository.findById(projetEtapesRequestDto.getProjetId()).orElseThrow(
                 ()-> new ResourceNotFoundException("Projet n'existe pas")
@@ -49,12 +52,50 @@ public class ProjetEtapeService {
         if(projet.getPorteur().getId()!=userConnecter.getUser().getId()){
             throw new NonAutoriseException("non autorisé");
         }
-        ProjetEtape projetEtape=new ProjetEtape();
-        projetEtape.setStatutEtape(StatutEtapeEnum.EN_COUR);
-        projetEtape.setProjet(projet);
-        projetEtape.setEtape(etapeRepository.findById(projetEtapesRequestDto.getEtape_id()).get());
-        return projetEtapeRepository.save(projetEtape);
+        Optional<ProjetEtape>  projetEtapeVerif=projetEtapeRepository.findByProjetIdAndEtapeId(projet.getId(), projetEtapesRequestDto.getEtape_id());
+        if(projetEtapeVerif.isPresent()){
+            ProjetEtape projetEtapeExistant=projetEtapeVerif.get();
+            projetEtapeExistant.setProjet(projet);
+            projetEtapeExistant.setEtape(etapeRepository.findById(projetEtapesRequestDto.getEtape_id()).get());
+            return projetEtapeRepository.save(projetEtapeExistant);
+
+
+        }else{
+            ProjetEtape projetEtape=new ProjetEtape();
+            projetEtape.setStatutEtape(StatutEtapeEnum.EN_COUR);
+            projetEtape.setProjet(projet);
+            projetEtape.setEtape(etapeRepository.findById(projetEtapesRequestDto.getEtape_id()).get());
+            return projetEtapeRepository.save(projetEtape);
+        }
+
     }
+
+     */
+    public ProjetEtape commencerEtapes(ProjetEtapesRequestDto projetEtapesRequestDto, @AuthenticationPrincipal CustumUserDetail userConnecter) {
+        Projet projet = projetRepository.findById(projetEtapesRequestDto.getProjetId()).orElseThrow(
+                () -> new ResourceNotFoundException("Projet n'existe pas")
+        );
+        if (projet.getPorteur().getId() != userConnecter.getUser().getId()) {
+            throw new NonAutoriseException("non autorisé");
+        }
+        Optional<ProjetEtape> projetEtapeVerif = projetEtapeRepository.findByProjetIdAndEtapeId(
+                projet.getId(),
+                projetEtapesRequestDto.getEtape_id()
+        );
+        if (projetEtapeVerif.isPresent()) {
+            return projetEtapeVerif.get();
+        } else {
+            ProjetEtape projetEtape = new ProjetEtape();
+            projetEtape.setStatutEtape(StatutEtapeEnum.EN_COUR);
+            projetEtape.setProjet(projet);
+            Etape etape = etapeRepository.findById(projetEtapesRequestDto.getEtape_id()).orElseThrow(
+                    () -> new ResourceNotFoundException("L'étape générique demandée n'existe pas")
+            );
+            projetEtape.setEtape(etape);
+            return projetEtapeRepository.save(projetEtape);
+        }
+    }
+
     public byte[] genererDocumentLivrable(int projetEtapeId, CustumUserDetail userConnecter) {
         // 1. Récupération de l'étape du projet
         ProjetEtape projetEtape = projetEtapeRepository.findById(projetEtapeId).orElseThrow(

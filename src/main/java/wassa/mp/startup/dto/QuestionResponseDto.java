@@ -11,6 +11,6 @@ public class QuestionResponseDto {
     private int id;
     private String libelle;
     private String etape_nom;
-    private String reposonse_donnee;
+    private String reponse_donnee;
 
 }

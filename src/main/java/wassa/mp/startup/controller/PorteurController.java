@@ -63,7 +63,7 @@ public class PorteurController {
     public List<ProjetEtapeResponseDto> getEtapesProjet(@PathVariable int id, @AuthenticationPrincipal CustumUserDetail userConnecter){
         return  projetEtapeService.projetEtapeResponseDtoList(id,userConnecter);
     }
-    @PostMapping("/projet-etapes/commencer")
+    @PutMapping("/projet-etapes/commencer")
     public ResponseEntity<ProjetEtapeResponseDto>CommencerEtapes(@AuthenticationPrincipal CustumUserDetail userConnecter,@RequestBody ProjetEtapesRequestDto projetEtapesRequestDto){
         ProjetEtape projetEtape= projetEtapeService.commencerEtapes(projetEtapesRequestDto,userConnecter);
         return ResponseEntity.status(HttpStatus.CREATED).body(
