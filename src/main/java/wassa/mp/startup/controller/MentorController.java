@@ -10,6 +10,7 @@ import org.springframework.web.bind.annotation.*;
 import wassa.mp.startup.CustumUserDetail;
 import wassa.mp.startup.dto.DemandeMentoratDto;
 import wassa.mp.startup.dto.MentorRegisterRequestDto;
+import wassa.mp.startup.dto.MentorReponseDto;
 import wassa.mp.startup.service.MentorProjetService;
 import wassa.mp.startup.service.MentorService;
 
@@ -22,20 +23,12 @@ public class MentorController {
     private MentorProjetService mentorProjetService;
     @Autowired
     private MentorService mentorService;
-
-    /**
-     * Endpoint permettant à un Mentor connecté de proposer son accompagnement à un projet.
-     * URL : POST http://localhost:8080/api/mentor/proposer-accompagnement
-     */
     @PostMapping("/proposer-accompagnement")
     public ResponseEntity<String> proposerAccompagnement(
             @Valid @RequestBody DemandeMentoratDto demandeMentoratDto,
             @AuthenticationPrincipal CustumUserDetail userConnecter) {
 
-        // Appel de la méthode de service que nous venons de coder ensemble
         mentorProjetService.mentorProposeMentorat(demandeMentoratDto, userConnecter);
-
-        // Retourne un statut 201 CREATED avec un message de succès
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body("Votre proposition d'accompagnement a été envoyée et notifiée au porteur de projet.");
     }
@@ -46,10 +39,6 @@ public class MentorController {
 
         return ResponseEntity.ok("La demande de mentorat a été acceptée avec succès.");
     }
-    /**
-     * Le Mentor refuse une invitation venant d'un Porteur
-     * URL : PUT /api/mentor/mentor-projets/{id}/refuser
-     */
     @PutMapping("/mentor-projets/{id}/refuser")
     public ResponseEntity<String> mentorRefuserInvitation(
             @PathVariable int id,
@@ -58,11 +47,9 @@ public class MentorController {
         return ResponseEntity.ok("L'invitation de mentorat a été déclinée.");
     }
     @PostMapping("/register")
-    public ResponseEntity<String> inscrireNouveauMentor(@Valid @RequestBody MentorRegisterRequestDto dto) {
-        // Appel de la logique métier que nous avons écrite ensemble
-        mentorService.inscrireMentor(dto);
+    public ResponseEntity<MentorReponseDto> inscrireNouveauMentor( @RequestBody MentorRegisterRequestDto dto) {
         return ResponseEntity.status(HttpStatus.CREATED)
-                .body("Votre inscription a été soumise avec succès. Votre dossier (CV et diplôme) est en cours d'examen par nos administrateurs.");
+                .body(mentorService.inscrireMentor(dto));
     }
 
 }

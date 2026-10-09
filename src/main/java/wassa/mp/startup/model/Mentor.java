@@ -12,6 +12,7 @@ import wassa.mp.startup.Enumeration.StatuEnumMentor;
 import java.util.List;
 @Entity @NoArgsConstructor @AllArgsConstructor @Data
 public class Mentor extends  User {
+    private String description;
     private String cv_url;
     private String diplome_url;
     @Enumerated(EnumType.STRING)
