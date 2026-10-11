@@ -24,7 +24,7 @@ public class ProjetService {
     public List<ProjetResponseDto> getAllProjets(@AuthenticationPrincipal CustumUserDetail userConnecter) {
           return projetRepository.findByPorteur(userConnecter.getUser().getId())
                   .stream().map(
-                          projet -> new ProjetResponseDto(projet.getId(), projet.getTitre(), projet.getDescription(), projet.getPith_url(), projet.getQuota_propose(), projet.getSecteurActivite().getNom())
+                          projet -> new ProjetResponseDto(projet.getId(), projet.getTitre(), projet.getDescription(), projet.getPith_url(), projet.getQuota_propose(), projet.getSecteurActivite().getNom(),userConnecter.getUser().getNomComplet(),projet.getDate_creation())
                   ).toList();
     }
     public Projet creaProjet(ProjetRequestDto projetRequestDto,  @AuthenticationPrincipal CustumUserDetail userConnecter){
@@ -45,7 +45,7 @@ public class ProjetService {
         if(projet.getPorteur().getId()!=userConnecter.getUser().getId()){
             throw new NonAutoriseException("Vous n'êtes pas autorisé à modifier ce projet");
         }
-        return new ProjetResponseDto(projet.getId(),projet.getTitre(), projet.getDescription(), projet.getPith_url(), projet.getQuota_propose(),projet.getSecteurActivite().getNom());
+        return new ProjetResponseDto(projet.getId(),projet.getTitre(), projet.getDescription(), projet.getPith_url(), projet.getQuota_propose(),projet.getSecteurActivite().getNom(),userConnecter.getUser().getNomComplet(),projet.getDate_creation());
     }
     public ProjetResponseDto modifierProjet(int id,@AuthenticationPrincipal CustumUserDetail userConnecter,ProjetRequestDto projetRequestDto){
         Projet projet=projetRepository.findById(id).orElseThrow(
@@ -61,6 +61,6 @@ public class ProjetService {
         projet.setQuota_propose(projetRequestDto.getQuota_propose());
         projet.setSecteurActivite(secteurActiviteRepository.findById(projetRequestDto.getSecteur_id()).get());
         Projet projetModifier=projetRepository.save(projet);
-        return new ProjetResponseDto(projetModifier.getId(),projetModifier.getTitre(), projetModifier.getDescription(), projetModifier.getPith_url(), projetModifier.getQuota_propose(),projetModifier.getSecteurActivite().getNom());
+        return new ProjetResponseDto(projetModifier.getId(),projetModifier.getTitre(), projetModifier.getDescription(), projetModifier.getPith_url(), projetModifier.getQuota_propose(),projetModifier.getSecteurActivite().getNom(),userConnecter.getUser().getNomComplet(),projet.getDate_creation());
     }
 }

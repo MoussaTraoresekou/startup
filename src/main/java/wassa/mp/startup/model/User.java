@@ -30,5 +30,9 @@ public class User {
     private LocalDate dateCreation=LocalDate.now();
     @OneToMany(mappedBy = "user")
     private List<Notification>notifications;
-
+    @Column(name = "email_verified", nullable = false)
+    private boolean emailVerified = false;
+    public  String getNomComplet(){
+        return this.nom +"  "+ this.prenom;
+    }
 }

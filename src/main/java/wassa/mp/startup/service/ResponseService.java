@@ -56,11 +56,11 @@ public class ResponseService {
 
         if (reponseExistante.isPresent()) {
             Reponse reponseAModifier = reponseExistante.get();
-            reponseAModifier.setReponse(reponseRequestDto.getReponse()); // Adaptez le getter selon votre DTO
+            reponseAModifier.setReponse(reponseRequestDto.getReponse());
             return reponseRepository.save(reponseAModifier);
         } else {
             Reponse nouvelleReponse = new Reponse();
-            nouvelleReponse.setReponse(reponseRequestDto.getReponse()); // Adaptez le getter selon votre DTO
+            nouvelleReponse.setReponse(reponseRequestDto.getReponse());
             nouvelleReponse.setProjetEtape(projetEtape);
             nouvelleReponse.setQuestion(question);
 

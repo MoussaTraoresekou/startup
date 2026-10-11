@@ -13,4 +13,5 @@ public interface MentorRepository extends JpaRepository<Mentor, Integer> {
     Optional<Mentor> findById(int id);
     // Récupère la liste de tous les mentors possédant un statut spécifique
     List<Mentor> findByStatuEnumMentor(StatuEnumMentor statut);
+
 }

@@ -15,6 +15,7 @@ import wassa.mp.startup.model.Reponse;
 import wassa.mp.startup.service.*;
 
 import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/porteur")
@@ -34,6 +35,8 @@ public class PorteurController {
     private MentorProjetService mentorProjetService;
     @Autowired
     private SecteurActiviteService secteurActiviteService;
+    @Autowired
+    private MentorService mentorService;
 
     @PostMapping("/register")
     public ResponseEntity<PorteurResponseDto> createPorteur(@RequestBody PorteurRequestDto porteurRequestDto) {
@@ -45,7 +48,7 @@ public class PorteurController {
         System.out.println("moussa");
         System.out.println(userConnecter.getUser().getEmail());
         Projet projet =projetService.creaProjet(p,userConnecter);
-        return ResponseEntity.status(HttpStatus.CREATED).body(new ProjetResponseDto(projet.getId(), projet.getTitre(), projet.getDescription(), projet.getPith_url(), projet.getQuota_propose(), projet.getSecteurActivite().getNom()));
+        return ResponseEntity.status(HttpStatus.CREATED).body(new ProjetResponseDto(projet.getId(), projet.getTitre(), projet.getDescription(), projet.getPith_url(), projet.getQuota_propose(), projet.getSecteurActivite().getNom(),userConnecter.getUser().getNomComplet(),projet.getDate_creation()));
     }
     @GetMapping("/projets/{id}")
     public ProjetResponseDto getProjetByid(@PathVariable int id, @AuthenticationPrincipal CustumUserDetail userConnecter){
@@ -63,7 +66,7 @@ public class PorteurController {
     public List<ProjetEtapeResponseDto> getEtapesProjet(@PathVariable int id, @AuthenticationPrincipal CustumUserDetail userConnecter){
         return  projetEtapeService.projetEtapeResponseDtoList(id,userConnecter);
     }
-    @PostMapping("/projet-etapes/commencer")
+    @PutMapping("/projet-etapes/commencer")
     public ResponseEntity<ProjetEtapeResponseDto>CommencerEtapes(@AuthenticationPrincipal CustumUserDetail userConnecter,@RequestBody ProjetEtapesRequestDto projetEtapesRequestDto){
         ProjetEtape projetEtape= projetEtapeService.commencerEtapes(projetEtapesRequestDto,userConnecter);
         return ResponseEntity.status(HttpStatus.CREATED).body(
@@ -107,27 +110,27 @@ public class PorteurController {
     }
 
     @PostMapping("/solliciter-mentor")
-    public ResponseEntity<String> solliciterMentor(
+    public ResponseEntity<Map<String, String>> solliciterMentor(
             @Valid @RequestBody InvitationMentorDto invitationMentorDto,
             @AuthenticationPrincipal CustumUserDetail userConnecter) {
 
         mentorProjetService.porteurSolliciteMentor(invitationMentorDto, userConnecter);
 
         return ResponseEntity.status(HttpStatus.CREATED)
-                .body("L'invitation a été envoyée avec succès. Le mentor a été notifié en temps réel.");
+                .body( Map.of("message", "L'invitation a été envoyée avec succès. Le mentor a été notifié en temps réel."));
     }
     @PutMapping("/mentor-projets/{id}/accepter")
-    public ResponseEntity<String> accepterDemande(@PathVariable int id, @AuthenticationPrincipal CustumUserDetail userConnecter) {
+    public ResponseEntity<Map<String, String>> accepterDemande(@PathVariable int id, @AuthenticationPrincipal CustumUserDetail userConnecter) {
 
         mentorProjetService.accepterDemandeMentorat(id, userConnecter);
 
-        return ResponseEntity.ok("La demande de mentorat a été acceptée avec succès.");
+        return ResponseEntity.ok(Map.of("message", "La demande de mentorat a été acceptée avec succès."));
     }
 
     @PutMapping("/mentor-projets/{id}/refuser")
-    public ResponseEntity<String> porteurRefuserDemande(@PathVariable int id,@AuthenticationPrincipal CustumUserDetail userConnecter) {
+    public ResponseEntity<Map<String, String>> porteurRefuserDemande(@PathVariable int id,@AuthenticationPrincipal CustumUserDetail userConnecter) {
         mentorProjetService.refuserDemandeMentorat(id, userConnecter);
-        return ResponseEntity.ok("La demande de mentorat a été déclinée.");
+        return ResponseEntity.ok(Map.of("message", "La demande de mentorat a été déclinée."));
     }
     /*
     @GetMapping("/secteurs")
@@ -136,6 +139,10 @@ public class PorteurController {
     }
 
      */
+    @GetMapping("/mentors")
+    public List<MentorReponseDto> getAllMentorsValides() {
+        return mentorService.listerMentorsValides();
+    }
 
 
 
