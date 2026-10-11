@@ -22,8 +22,10 @@ public class MentorService {
 
     @Autowired
     private BCryptPasswordEncoder passwordEncoder;
-
-    @Transactional
+    @Autowired
+    private EmailVerificationService emailVerificationService;
+    @Autowired
+    private EmailService emailService;
     public MentorReponseDto inscrireMentor(MentorRegisterRequestDto dto) {
 
         Mentor mentor = new Mentor();
@@ -38,7 +40,11 @@ public class MentorService {
         mentor.setDescription(dto.getDescription());
         mentor.setStatuEnumMentor(StatuEnumMentor.EN_ATTENTE);
 
-        Mentor m=mentorRepository.save(mentor);
+        Mentor m = mentorRepository.save(mentor);
+
+        // Envoyer le lien de vérification au mentor
+        emailVerificationService.envoyerLienVerification(m);
+
         return new MentorReponseDto(
                 m.getId(),
                 m.getNom(),
@@ -50,22 +56,35 @@ public class MentorService {
                 m.getRole().toString(),
                 m.getEmail(),
                 m.getDateCreation(),
-                m.getDescription()
+                m.getDescription(),
+                m.getSecteurActivite().getNom()
         );
     }
-    @Transactional
     public MentorReponseDto validerDossierMentor(int mentorId) {
-        Mentor mentor = mentorRepository.findById(mentorId).orElseThrow(
-                () -> new ResourceNotFoundException("Mentor introuvable avec l'ID : " + mentorId)
-        );
+
+        Mentor mentor = mentorRepository.findById(mentorId)
+                .orElseThrow(() ->
+                        new ResourceNotFoundException(
+                                "Mentor introuvable avec l'ID : " + mentorId
+                        )
+                );
+
         if (mentor.getStatuEnumMentor() == StatuEnumMentor.ACCEPTEE) {
-            throw new IllegalArgumentException("Ce compte mentor est déjà actif et validé.");
+            throw new IllegalArgumentException(
+                    "Ce compte mentor est déjà actif et validé."
+            );
         }
 
         mentor.setStatuEnumMentor(StatuEnumMentor.ACCEPTEE);
 
-        Mentor m= mentorRepository.save(mentor);
-        return  new MentorReponseDto(
+        Mentor m = mentorRepository.save(mentor);
+
+        emailService.envoyerEmailAcceptation(
+                m.getEmail(),
+                m.getPrenom()
+        );
+
+        return new MentorReponseDto(
                 m.getId(),
                 m.getNom(),
                 m.getPrenom(),
@@ -76,20 +95,37 @@ public class MentorService {
                 m.getRole().toString(),
                 m.getEmail(),
                 m.getDateCreation(),
-                m.getDescription()
+                m.getDescription(),
+                m.getSecteurActivite().getNom()
         );
     }
-    @Transactional
+
     public MentorReponseDto refuserDossierMentor(int mentorId) {
-        Mentor mentor = mentorRepository.findById(mentorId).orElseThrow(
-                () -> new ResourceNotFoundException("Mentor introuvable avec l'ID : " + mentorId)
-        );
+
+        Mentor mentor = mentorRepository.findById(mentorId)
+                .orElseThrow(() ->
+                        new ResourceNotFoundException(
+                                "Mentor introuvable avec l'ID : " + mentorId
+                        )
+                );
+
         if (mentor.getStatuEnumMentor() == StatuEnumMentor.REFUSEE) {
-            throw new IllegalArgumentException("Ce compte mentor a déjà été marqué comme REFUSE.");
+            throw new IllegalArgumentException(
+                    "Ce dossier mentor a déjà été refusé."
+            );
         }
+
         mentor.setStatuEnumMentor(StatuEnumMentor.REFUSEE);
-        Mentor m= mentorRepository.save(mentor);
-        return  new MentorReponseDto(
+
+        Mentor m = mentorRepository.save(mentor);
+
+        emailService.envoyerEmailRefus(
+                m.getEmail(),
+                m.getPrenom(),
+                "Votre dossier ne répond pas actuellement aux critères de sélection."
+        );
+
+        return new MentorReponseDto(
                 m.getId(),
                 m.getNom(),
                 m.getPrenom(),
@@ -100,10 +136,10 @@ public class MentorService {
                 m.getRole().toString(),
                 m.getEmail(),
                 m.getDateCreation(),
-                m.getDescription()
+                m.getDescription(),
+                m.getSecteurActivite().getNom()
         );
     }
-    @Transactional(readOnly = true)
     public List<MentorEnAttenteResponseDto> listerMentorsEnAttente() {
         List<Mentor> mentorsEnAttente = mentorRepository.findByStatuEnumMentor(StatuEnumMentor.EN_ATTENTE);
 
@@ -115,6 +151,24 @@ public class MentorService {
                 m.getTelephone(),
                 m.getCv_url(),
                 m.getDiplome_url()
+        )).toList();
+    }
+    public List<MentorReponseDto> listerMentorsValides() {
+        List<Mentor> mentorsEnAttente = mentorRepository.findByStatuEnumMentor(StatuEnumMentor.ACCEPTEE);
+
+        return mentorsEnAttente.stream().map(m -> new MentorReponseDto(
+                m.getId(),
+                m.getNom(),
+                m.getPrenom(),
+                m.getDiplome_url(),
+                m.getCv_url(),
+                m.getStatuEnumMentor().toString(),
+                m.getTelephone(),
+                m.getRole().toString()==null?m.getRole().toString():"",
+                m.getEmail(),
+                m.getDateCreation(),
+                m.getDescription(),
+                m.getSecteurActivite().getNom()
         )).toList();
     }
     public List<MentorReponseDto> getAllMentors() {
@@ -130,7 +184,8 @@ public class MentorService {
                 m.getRole().toString()==null?m.getRole().toString():"",
                 m.getEmail(),
                 m.getDateCreation(),
-                m.getDescription()
+                m.getDescription(),
+                m.getSecteurActivite().getNom()
                 )).toList();
     }
 

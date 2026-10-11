@@ -8,7 +8,7 @@ import wassa.mp.startup.model.Notification;
 import java.util.List;
 
 public interface NotificationRepository extends JpaRepository<Notification,Integer> {
-    @Query("Select n from Notification n where n.user.id=:utilisateurId")
+    @Query("Select n from Notification n where n.user.id=:utilisateurId order by id desc")
     List<Notification> findByUtilisateurIdOrderByDateCreationDesc(@Param("utilisateurId") int utilisateurId);
 
 }

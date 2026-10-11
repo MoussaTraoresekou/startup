@@ -1,8 +1,10 @@
+
 package wassa.mp.startup.service;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
 import wassa.mp.startup.dto.AlerteMentoratDto;
 import wassa.mp.startup.dto.NotificationResponseDto;
 import wassa.mp.startup.model.Notification;
@@ -19,54 +21,87 @@ public class NotificationService {
     private NotificationRepository notificationRepository;
 
     @Autowired
-    private NotificationSseService sseService; // Le flux en direct développé plus haut
+    private NotificationSseService sseService;
 
     /**
-     * Crée une notification en base de données ET l'envoie en temps réel si possible.
+     * Enregistre une notification dans la base de données
+     * puis prépare son envoi en temps réel au destinataire.
      */
     @Transactional
-    public void notifierUtilisateur(User destinataire, AlerteMentoratDto alerteDto) {
+    public void notifierUtilisateur(
+            User destinataire,
+            AlerteMentoratDto alerteDto) {
 
-        // 1. Enregistrement persistant dans la base de données
+        // 1. Créer la notification persistante
         Notification notification = new Notification();
+
         notification.setMessage(alerteDto.getMessage());
         notification.setLu(false);
         notification.setDateCreation(LocalDateTime.now());
         notification.setUser(destinataire);
 
-        notificationRepository.save(notification);
+        // 2. Enregistrer la notification en base de données
+        Notification notificationEnregistree =
+                notificationRepository.save(notification);
 
-        // 2. Propagation instantanée en temps réel (SSE)
-        sseService.envoyerNotificationEnTempsReel(destinataire.getId(), alerteDto);
+        // 3. Construire le DTO correspondant à la notification enregistrée
+        NotificationResponseDto notificationDto =
+                new NotificationResponseDto(
+                        notificationEnregistree.getId(),
+                        notificationEnregistree.getMessage(),
+                        notificationEnregistree.isLu(),
+                        notificationEnregistree.getDateCreation()
+                );
+
+        // 4. Envoyer la notification persistante au destinataire via SSE
+        sseService.envoyerNotificationEnTempsReel(
+                destinataire.getId(),
+                notificationDto
+        );
     }
+
     /**
-     * Récupère l'historique des notifications formaté en DTO pour l'utilisateur connecté
+     * Récupère l'historique des notifications d'un utilisateur,
+     * de la plus récente à la plus ancienne.
      */
     @Transactional(readOnly = true)
-    public List<NotificationResponseDto> obtenirHistoriqueUtilisateur(int utilisateurId) {
-        List<Notification> notifications = notificationRepository.findByUtilisateurIdOrderByDateCreationDesc(utilisateurId);
+    public List<NotificationResponseDto> obtenirHistoriqueUtilisateur(
+            int utilisateurId) {
 
-        // Conversion de la liste d'entités en liste de DTOs
-        return notifications.stream().map(n -> new NotificationResponseDto(
-                n.getId(),
-                n.getMessage(),
-                n.isLu(),
-                n.getDateCreation()
-        )).toList();
+        List<Notification> notifications =
+                notificationRepository
+                        .findByUtilisateurIdOrderByDateCreationDesc(
+                                utilisateurId
+                        );
+
+        return notifications.stream()
+                .map(notification -> new NotificationResponseDto(
+                        notification.getId(),
+                        notification.getMessage(),
+                        notification.isLu(),
+                        notification.getDateCreation()
+                ))
+                .toList();
     }
 
     /**
-     * Passe toutes les notifications non lues d'un utilisateur à l'état LU
+     * Marque toutes les notifications de l'utilisateur comme lues.
      */
     @Transactional
     public void marquerToutCommeLu(int utilisateurId) {
-        List<Notification> notifications = notificationRepository.findByUtilisateurIdOrderByDateCreationDesc(utilisateurId);
-        for (Notification n : notifications) {
-            if (!n.isLu()) {
-                n.setLu(true);
+
+        List<Notification> notifications =
+                notificationRepository
+                        .findByUtilisateurIdOrderByDateCreationDesc(
+                                utilisateurId
+                        );
+
+        for (Notification notification : notifications) {
+            if (!notification.isLu()) {
+                notification.setLu(true);
             }
         }
+
         notificationRepository.saveAll(notifications);
     }
-
 }

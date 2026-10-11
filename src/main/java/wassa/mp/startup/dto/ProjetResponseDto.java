@@ -4,6 +4,8 @@ import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.time.LocalDate;
+
 @Data @NoArgsConstructor @AllArgsConstructor
 public class ProjetResponseDto {
     private int id;
@@ -12,4 +14,7 @@ public class ProjetResponseDto {
     private String pith_url;
     private String quota_propose;
     private String secteur;
+    private String porteurNomComplet;
+    private LocalDate date_creation;
+
 }

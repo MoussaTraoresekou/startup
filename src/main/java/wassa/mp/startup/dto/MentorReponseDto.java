@@ -20,4 +20,5 @@ public class MentorReponseDto {
     private String email;
     private LocalDate dateCreation;
     private String description;
+    private String secteur;
 }

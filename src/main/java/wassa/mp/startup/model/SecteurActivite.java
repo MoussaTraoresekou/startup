@@ -16,4 +16,7 @@ public class SecteurActivite {
     private String nom;
     @OneToMany (mappedBy = "secteurActivite")
     List<Projet> projets;
+    @OneToMany (mappedBy = "secteurActivite")
+    List<Mentor> mentors;
+
 }

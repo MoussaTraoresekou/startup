@@ -1,10 +1,14 @@
+
 package wassa.mp.startup.config;
 
+import io.jsonwebtoken.JwtException;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
-import org.springframework.beans.factory.annotation.Autowired;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UserDetails;
@@ -12,74 +16,93 @@ import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.web.authentication.WebAuthenticationDetailsSource;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
+
 import wassa.mp.startup.service.JwtService;
+
 import java.io.IOException;
 
 @Component
 public class JwtAuthentificationFilter extends OncePerRequestFilter {
 
-    @Autowired
-    private JwtService jwtService;
+    private static final Logger log =
+            LoggerFactory.getLogger(JwtAuthentificationFilter.class);
 
-    @Autowired
-    private UserDetailsService userDetailsService;
+    private final JwtService jwtService;
+    private final UserDetailsService userDetailsService;
+
+    public JwtAuthentificationFilter(
+            JwtService jwtService,
+            UserDetailsService userDetailsService) {
+        this.jwtService = jwtService;
+        this.userDetailsService = userDetailsService;
+    }
 
     @Override
-    protected void doFilterInternal(HttpServletRequest request,HttpServletResponse response, FilterChain filterChain) throws ServletException, IOException {
+    protected void doFilterInternal(
+            HttpServletRequest request,
+            HttpServletResponse response,
+            FilterChain filterChain)
+            throws ServletException, IOException {
 
-        // 1. Récupérer le header Authorization
         String authHeader = request.getHeader("Authorization");
 
-        // 2. Vérifier que le header existe et commence par Bearer
+        // Aucune authentification Bearer : continuer normalement.
         if (authHeader == null || !authHeader.startsWith("Bearer ")) {
             filterChain.doFilter(request, response);
             return;
         }
 
-        // 3. Récupérer uniquement le JWT
-        String jwt = authHeader.substring(7);
+        String jwt = authHeader.substring(7).trim();
+
+        // Un Bearer vide ne constitue pas un JWT valide.
+        if (jwt.isEmpty()) {
+            SecurityContextHolder.clearContext();
+            filterChain.doFilter(request, response);
+            return;
+        }
 
         try {
-
-            // 4. Récupérer le username depuis le JWT
             String email = jwtService.extraUserName(jwt);
 
-            // 5. Vérifier si l'utilisateur n'est pas déjà authentifié
-            if (SecurityContextHolder.getContext().getAuthentication() == null) {
+            if (SecurityContextHolder.getContext()
+                    .getAuthentication() == null) {
 
-                // 6. Charger l'utilisateur depuis la base
                 UserDetails userDetails =
                         userDetailsService.loadUserByUsername(email);
 
-                // 7. Vérifier le JWT
                 if (jwtService.isTokenValid(jwt, userDetails)) {
 
-                    // 8. Créer l'authentification
-                    UsernamePasswordAuthenticationToken authenticationToken =
+                    UsernamePasswordAuthenticationToken authentication =
                             new UsernamePasswordAuthenticationToken(
                                     userDetails,
                                     null,
                                     userDetails.getAuthorities()
                             );
 
-                    // 9. Ajouter les détails de la requête
-                    authenticationToken.setDetails(
+                    authentication.setDetails(
                             new WebAuthenticationDetailsSource()
                                     .buildDetails(request)
                     );
 
-                    // 10. Enregistrer l'utilisateur comme authentifié
-                    SecurityContextHolder
-                            .getContext()
-                            .setAuthentication(authenticationToken);
+                    SecurityContextHolder.getContext()
+                            .setAuthentication(authentication);
                 }
             }
 
-        } catch (Exception e) {
-            System.out.println("Erreur JWT : " + e.getMessage());
+        } catch (JwtException | IllegalArgumentException e) {
+
+            // Token expiré, mal formé ou signature invalide.
+            SecurityContextHolder.clearContext();
+
+            log.debug(
+                    "JWT invalide ou expiré pour la requête {} {}",
+                    request.getMethod(),
+                    request.getRequestURI()
+            );
         }
 
-        // 11. Continuer la chaîne
+        // Spring Security décidera si la ressource exige
+        // une authentification et renverra le statut adapté.
         filterChain.doFilter(request, response);
     }
 }

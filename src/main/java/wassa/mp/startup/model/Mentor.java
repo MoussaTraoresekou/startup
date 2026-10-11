@@ -1,9 +1,6 @@
 package wassa.mp.startup.model;
 
-import jakarta.persistence.Entity;
-import jakarta.persistence.EnumType;
-import jakarta.persistence.Enumerated;
-import jakarta.persistence.OneToMany;
+import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -20,4 +17,6 @@ public class Mentor extends  User {
     // Un mentor peut avoir plusieurs demandes ou suivis de projets en cours
     @OneToMany(mappedBy = "mentor")
     private List<MentorProjet> mentorProjets;
+    @ManyToOne
+    private SecteurActivite secteurActivite;
 }

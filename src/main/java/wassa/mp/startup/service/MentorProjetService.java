@@ -4,9 +4,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import wassa.mp.startup.CustumUserDetail;
-import wassa.mp.startup.dto.AlerteMentoratDto;
-import wassa.mp.startup.dto.DemandeMentoratDto; // Contient projetId et description
-import wassa.mp.startup.dto.InvitationMentorDto;
+import wassa.mp.startup.dto.*;
 import wassa.mp.startup.exception.OperationInterditeException;
 import wassa.mp.startup.exception.ResourceNotFoundException;
 import wassa.mp.startup.model.*;
@@ -14,6 +12,7 @@ import wassa.mp.startup.Enumeration.StatutDemandeMentoratEnum;
 import wassa.mp.startup.repository.*;
 
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.Optional;
 
 @Service
@@ -147,11 +146,13 @@ public class MentorProjetService {
         MentorProjet mentorProjet = mentorProjetRepository.findById(mentorProjetId).orElseThrow(
                 () -> new ResourceNotFoundException("Cette demande de mentorat n'existe pas.")
         );
-
+        /*
         // 2. Sécurité : Vérifier que la demande est bien en attente
         if (mentorProjet.getStatut() != StatutDemandeMentoratEnum.EN_ATTENTE) {
             throw new OperationInterditeException("Cette demande a déjà été traitée (Statut actuel : " + mentorProjet.getStatut() + ").");
         }
+
+         */
 
         int idConnecter = userConnecter.getUser().getId();
         User destinataireAlerte = null;
@@ -172,7 +173,7 @@ public class MentorProjetService {
 
         } else {
             // Sécurité : Un utilisateur tiers essaie de forcer l'acceptation
-            throw new IllegalArgumentException("Vous n'êtes pas autorisé à traiter cette demande de mentorat.");
+            throw new OperationInterditeException("Vous n'êtes pas autorisé à traiter cette demande de mentorat.");
         }
 
         // 4. Mise à jour de la relation en base de données
@@ -201,11 +202,13 @@ public class MentorProjetService {
         MentorProjet mentorProjet = mentorProjetRepository.findById(mentorProjetId).orElseThrow(
                 () -> new ResourceNotFoundException("Cette demande de mentorat n'existe pas.")
         );
-
+/*
         // 2. Sécurité : Vérifier que la demande est bien en attente
         if (mentorProjet.getStatut() != StatutDemandeMentoratEnum.EN_ATTENTE) {
             throw new OperationInterditeException("Cette demande a déjà été traitée (Statut actuel : " + mentorProjet.getStatut() + ").");
         }
+
+ */
 
         int idConnecter = userConnecter.getUser().getId();
         User destinataireAlerte = null;
@@ -223,7 +226,7 @@ public class MentorProjetService {
             messageRefus = "Le mentor " + userConnecter.getUser().getPrenom() + " a décliné votre invitation pour le projet " + mentorProjet.getProjet().getTitre() + ".";
 
         } else {
-            throw new IllegalArgumentException("Vous n'êtes pas autorisé à traiter cette demande.");
+            throw new OperationInterditeException("Vous n'êtes pas autorisé à traiter cette demande.");
         }
 
         // 4. Mise à jour en base de données
@@ -243,7 +246,38 @@ public class MentorProjetService {
 
         notificationService.notifierUtilisateur(destinataireAlerte, alerte);
     }
+    @Transactional(readOnly = true)
+    public List<MentorDemandeResponseDto> obtenirDemandesPourMentor(int mentorId) {
+        List<MentorProjet> demandes = mentorProjetRepository.findByMentorId(mentorId);
+        return demandes.stream().map(mp -> new MentorDemandeResponseDto(
+                mp.getId(),
+                mp.getProjet().getId(), // ID du projet transmis pour alimenter le bouton "Consulter" du Frontend Angular 🎯
+                mp.getProjet().getTitre(),
+                mp.getProjet().getPorteur().getPrenom() + " " + mp.getProjet().getPorteur().getNom(),
+                mp.getProjet().getSecteurActivite().getNom(), // Remplacez par mp.getProjet().getSecteur().getSecteur() si c'est une entité jointe
+                mp.getDescription(),
+                mp.getDateDemande(),
+                mp.getStatut().toString()
+        )).toList();
+    }
+    @Transactional(readOnly = true)
+    public ProjetResponseDto obtenirDetailsFicheProjet(int projetId) {
+        // Récupération de la startup ciblée
+        Projet projet = projetRepository.findById(projetId).orElseThrow(
+                () -> new ResourceNotFoundException("Le projet demandé n'existe pas.")
+        );
 
-
+        // Construction du DTO technique complet incluant les liens cloud Supabase
+        return new ProjetResponseDto(
+                projet.getId(),
+                projet.getTitre(),
+                projet.getDescription(),
+                projet.getPith_url(),
+                projet.getQuota_propose(),
+                projet.getSecteurActivite().getNom(), // Remplacez par le mapping adéquat selon votre modèle d'activité
+                projet.getPorteur().getNomComplet(),
+                projet.getDate_creation()
+        );
+    }
 
 }
