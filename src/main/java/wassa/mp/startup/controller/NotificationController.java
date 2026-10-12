@@ -22,11 +22,6 @@ public class NotificationController {
     private NotificationService notificationService;
     @Autowired
     private NotificationSseService sseService;
-
-    /**
-     * Récupère l'historique complet des alertes de l'utilisateur connecté
-     * URL : GET http://localhost:8080/api/notifications/historique
-     */
     @GetMapping("/historique")
     public ResponseEntity<List<NotificationResponseDto>> getMonHistorique(
             @AuthenticationPrincipal CustumUserDetail userConnecter) {
@@ -35,10 +30,6 @@ public class NotificationController {
         return ResponseEntity.ok(historique);
     }
 
-    /**
-     * Marque toutes les notifications comme lues (quand l'utilisateur ouvre sa cloche de notifications)
-     * URL : PUT http://localhost:8080/api/notifications/marquer-lu
-     */
     @PutMapping("/marquer-lu")
     public ResponseEntity<String> toutMarquerCommeLu(@AuthenticationPrincipal CustumUserDetail userConnecter) {
         notificationService.marquerToutCommeLu(userConnecter.getUser().getId());

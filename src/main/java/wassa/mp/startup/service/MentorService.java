@@ -12,6 +12,7 @@ import wassa.mp.startup.exception.ResourceNotFoundException;
 import wassa.mp.startup.model.Mentor;
 import wassa.mp.startup.Enumeration.StatuEnumMentor;
 import wassa.mp.startup.repository.MentorRepository;
+import wassa.mp.startup.repository.SecteurActiviteRepository;
 
 import java.util.List;
 
@@ -26,6 +27,8 @@ public class MentorService {
     private EmailVerificationService emailVerificationService;
     @Autowired
     private EmailService emailService;
+    @Autowired
+    private SecteurActiviteRepository secteurActiviteRepository;
     public MentorReponseDto inscrireMentor(MentorRegisterRequestDto dto) {
 
         Mentor mentor = new Mentor();
@@ -37,6 +40,7 @@ public class MentorService {
         mentor.setPassword(passwordEncoder.encode(dto.getMotDePass()));
         mentor.setCv_url(dto.getCvUrl());
         mentor.setDiplome_url(dto.getDiplomeUrl());
+        mentor.setSecteurActivite(secteurActiviteRepository.findById(dto.getSecteur()).get());
         mentor.setDescription(dto.getDescription());
         mentor.setStatuEnumMentor(StatuEnumMentor.EN_ATTENTE);
 
@@ -57,7 +61,7 @@ public class MentorService {
                 m.getEmail(),
                 m.getDateCreation(),
                 m.getDescription(),
-                m.getSecteurActivite().getNom()
+                m.getSecteurActivite().getNom()!=null?m.getSecteurActivite().getNom():""
         );
     }
     public MentorReponseDto validerDossierMentor(int mentorId) {

@@ -23,10 +23,6 @@ public class NotificationService {
     @Autowired
     private NotificationSseService sseService;
 
-    /**
-     * Enregistre une notification dans la base de données
-     * puis prépare son envoi en temps réel au destinataire.
-     */
     @Transactional
     public void notifierUtilisateur(
             User destinataire,
@@ -59,11 +55,6 @@ public class NotificationService {
                 notificationDto
         );
     }
-
-    /**
-     * Récupère l'historique des notifications d'un utilisateur,
-     * de la plus récente à la plus ancienne.
-     */
     @Transactional(readOnly = true)
     public List<NotificationResponseDto> obtenirHistoriqueUtilisateur(
             int utilisateurId) {
@@ -83,10 +74,6 @@ public class NotificationService {
                 ))
                 .toList();
     }
-
-    /**
-     * Marque toutes les notifications de l'utilisateur comme lues.
-     */
     @Transactional
     public void marquerToutCommeLu(int utilisateurId) {
 

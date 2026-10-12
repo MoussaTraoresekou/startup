@@ -30,9 +30,6 @@ public class MentorProjetService {
     @Autowired
     private NotificationService notificationService; // Centralise l'enregistrement et le SSE
 
-    /**
-     * Un Mentor connecté soumet sa candidature pour accompagner un projet
-     */
     @Transactional
     public void mentorProposeMentorat(DemandeMentoratDto dto, CustumUserDetail userConnecter) {
 
@@ -51,6 +48,8 @@ public class MentorProjetService {
         if (relationExistante.isPresent()) {
             throw new OperationInterditeException("Une demande d'accompagnement est déjà en cours ou a déjà été traitée pour ce projet.");
         }
+
+
 
         // 4. Enregistrement du contrat d'association en base de données
         MentorProjet mentorProjet = new MentorProjet();
@@ -102,11 +101,13 @@ public class MentorProjetService {
                 () -> new ResourceNotFoundException("Le mentor sélectionné n'existe pas.")
         );
 
-        // 4. SÉCURITÉ : Éviter les doublons (si une relation ou demande existe déjà)
+        /* 4. SÉCURITÉ : Éviter les doublons (si une relation ou demande existe déjà)
         Optional<MentorProjet> relationExistante = mentorProjetRepository.findByMentorIdAndProjetId(mentor.getId(), projet.getId());
         if (relationExistante.isPresent()) {
             throw new OperationInterditeException("Une relation ou une demande d'accompagnement est déjà en cours avec ce mentor.");
         }
+
+         */
 
         // 5. Enregistrement de la demande d'association en base de données (Statut EN_ATTENTE)
         MentorProjet mentorProjet = new MentorProjet();
@@ -131,7 +132,7 @@ public class MentorProjetService {
                 LocalDateTime.now()
         );
 
-        // 7. ENVOI EN TEMPS RÉEL (SSE) 📡
+        // 7. ENVOI EN TEMPS RÉEL (SSE)
         // La classe Mentor héritant de User, on extrait l'identifiant pour cibler son écran
         User destinataireMentor = mentor;
 
@@ -279,5 +280,23 @@ public class MentorProjetService {
                 projet.getDate_creation()
         );
     }
+    @Transactional(readOnly = true)
+    public List<ProjetResponseDto> obtenirStartupsAssigneesAuMentor(int mentorId) {
+        // Extraction des relations acceptées depuis la table pivot mentor_projet
+        List<MentorProjet> liaisons = mentorProjetRepository.findByMentorIdAndStatut(mentorId, StatutDemandeMentoratEnum.ACCEPTEE);
+
+        // Transformation des entités réelles vers votre DTO ProjetResponseDto existant
+        return liaisons.stream().map(mp -> new ProjetResponseDto(
+                mp.getProjet().getId(),
+                mp.getProjet().getTitre(),
+                mp.getProjet().getDescription(),
+                mp.getProjet().getPith_url(),
+                mp.getProjet().getQuota_propose(),
+                mp.getProjet().getSecteurActivite().getNom(),
+                mp.getProjet().getPorteur().getNomComplet(),
+                mp.getProjet().getDate_creation()
+        )).toList();
+    }
+
 
 }

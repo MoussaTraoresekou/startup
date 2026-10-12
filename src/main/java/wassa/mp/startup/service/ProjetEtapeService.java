@@ -3,8 +3,11 @@ package wassa.mp.startup.service;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import wassa.mp.startup.CustumUserDetail;
 import wassa.mp.startup.Enumeration.StatutEtapeEnum;
+import wassa.mp.startup.dto.ActionEtapeDto;
+import wassa.mp.startup.dto.LivrableEtapeDto;
 import wassa.mp.startup.dto.ProjetEtapeResponseDto;
 import wassa.mp.startup.dto.ProjetEtapesRequestDto;
 import wassa.mp.startup.exception.OperationInterditeException;
@@ -19,6 +22,7 @@ import wassa.mp.startup.repository.ProjetEtapeRepository;
 import wassa.mp.startup.repository.ProjetRepository;
 
 import java.nio.charset.StandardCharsets;
+import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
 
@@ -142,4 +146,67 @@ public class ProjetEtapeService {
 
         return doc.toString().getBytes(StandardCharsets.UTF_8);
     }
+    @Transactional
+    public void soumettreLivrableEtape(int projetEtapeId, CustumUserDetail userConnecter) {
+        ProjetEtape pe = projetEtapeRepository.findById(projetEtapeId)
+                .orElseThrow(() -> new ResourceNotFoundException("L'étape de projet demandée n'existe pas."));
+
+        if (pe.getProjet().getPorteur().getId() != userConnecter.getUser().getId()) {
+            throw new NonAutoriseException("Vous n'êtes pas autorisé à soumettre ce projet.");
+        }
+
+        int totalQuestions = pe.getEtape().getQuestions().size();
+        int totalReponses = pe.getReponse().size();
+
+        if (totalReponses < totalQuestions) {
+            throw new OperationInterditeException("Veuillez répondre à toutes les questions avant de soumettre ("
+                    + totalReponses + "/" + totalQuestions + " répondues).");
+        }
+
+        pe.setStatutEtape(StatutEtapeEnum.SOUMIS);
+        pe.setDateSoumission(LocalDate.now());
+
+        projetEtapeRepository.save(pe);
+    }
+    @Transactional
+    public void validerEtapeParMentor(ActionEtapeDto dto) {
+        ProjetEtape pe = projetEtapeRepository.findById(dto.getProjetEtapeId())
+                .orElseThrow(() -> new ResourceNotFoundException("L'étape de projet demandée n'existe pas."));
+
+        pe.setStatutEtape(StatutEtapeEnum.VALIDE);
+        pe.setDateValidation(LocalDate.now());
+        pe.setCommentaireMentor(dto.getCommentaireMentor());
+
+        projetEtapeRepository.save(pe);
+    }
+    @Transactional
+    public void renvoyerEtapePourCorrection(ActionEtapeDto dto) {
+        ProjetEtape pe = projetEtapeRepository.findById(dto.getProjetEtapeId())
+                .orElseThrow(() -> new ResourceNotFoundException("L'étape de projet demandée n'existe pas."));
+
+        pe.setStatutEtape(StatutEtapeEnum.A_REVOIR);
+        pe.setCommentaireMentor(dto.getCommentaireMentor());
+        pe.setDateValidation(null); // On s'assure que la date de validation reste vide
+
+        projetEtapeRepository.save(pe);
+    }
+    @Transactional(readOnly = true)
+    public LivrableEtapeDto consulterLivrableEnJson(int projetEtapeId) {
+        ProjetEtape pe = projetEtapeRepository.findById(projetEtapeId)
+                .orElseThrow(() -> new ResourceNotFoundException("L'étape de projet demandée n'existe pas."));
+
+        List<LivrableEtapeDto.QuestionReponseDto> elements = pe.getReponse().stream().map(
+                r -> new LivrableEtapeDto.QuestionReponseDto(r.getQuestion().getLibelle(), r.getReponse())
+        ).toList();
+
+        return new LivrableEtapeDto(
+                pe.getProjet().getTitre(),
+                pe.getEtape().getType().toString(),
+                pe.getProjet().getPorteur().getPrenom() + " " + pe.getProjet().getPorteur().getNom(),
+                elements
+        );
+    }
+
+
+
 }

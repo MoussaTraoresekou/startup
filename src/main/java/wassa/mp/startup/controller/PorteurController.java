@@ -144,6 +144,13 @@ public class PorteurController {
         return mentorService.listerMentorsValides();
     }
 
+    @PutMapping("/projet-etapes/{id}/soumettre")
+    public ResponseEntity<String> soumettreEtape(
+            @PathVariable int id,
+            @AuthenticationPrincipal CustumUserDetail userConnecter) {
+        projetEtapeService.soumettreLivrableEtape(id, userConnecter);
+        return ResponseEntity.ok("Le questionnaire de l'étape a été compilé et soumis au mentor avec succès.");
+    }
 
 
 }

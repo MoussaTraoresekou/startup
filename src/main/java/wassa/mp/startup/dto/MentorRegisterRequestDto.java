@@ -14,4 +14,5 @@ public class MentorRegisterRequestDto {
     private String cvUrl;
     private String diplomeUrl;
     private String description;
+    private int secteur;
 }
