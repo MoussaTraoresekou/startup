@@ -1,0 +1,20 @@
+package wassa.mp.startup.dto;
+
+import lombok.AllArgsConstructor;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+
+@Data
+@NoArgsConstructor
+@AllArgsConstructor
+public class CollaborateurResponseDto {
+    private int id;
+    private String nom;
+    private String prenom;
+    private String telephone;
+    private String email;
+    private String specialite;
+    private String biographie;
+    private String lienPortfolio;
+    private boolean disponible;
+}
