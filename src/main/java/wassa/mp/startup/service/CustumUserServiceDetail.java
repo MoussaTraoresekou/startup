@@ -29,6 +29,8 @@ public class CustumUserServiceDetail implements UserDetailsService {
     @Override
     public UserDetails loadUserByUsername(String email)
             throws UsernameNotFoundException {
+        System.out.println("Email recherché par Spring Security : " + email);
+
 
         User user = userRepository.findByEmail(email);
 

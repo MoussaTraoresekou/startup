@@ -95,7 +95,10 @@ public class MentorController {
         List<ProjetResponseDto> list = mentorProjetService.obtenirStartupsAssigneesAuMentor(userConnecter.getUser().getId());
         return ResponseEntity.ok(list);
     }
-
+    @GetMapping("/projets/{id}/etapes")
+    public List<ProjetEtapeResponseDto> getEtapesProjet(@PathVariable int id, @AuthenticationPrincipal CustumUserDetail userConnecter){
+        return  projetEtapeService.projetEtapeResponseDtoListPourMentor(id,userConnecter);
+    }
 
 
 }
