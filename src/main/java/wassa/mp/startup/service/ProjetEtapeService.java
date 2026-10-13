@@ -11,10 +11,7 @@ import wassa.mp.startup.dto.*;
 import wassa.mp.startup.exception.OperationInterditeException;
 import wassa.mp.startup.exception.NonAutoriseException;
 import wassa.mp.startup.exception.ResourceNotFoundException;
-import wassa.mp.startup.model.Etape;
-import wassa.mp.startup.model.Projet;
-import wassa.mp.startup.model.ProjetEtape;
-import wassa.mp.startup.model.Reponse;
+import wassa.mp.startup.model.*;
 import wassa.mp.startup.repository.EtapeRepository;
 import wassa.mp.startup.repository.MentorProjetRepository;
 import wassa.mp.startup.repository.ProjetEtapeRepository;
@@ -218,7 +215,6 @@ public class ProjetEtapeService {
             throw new NonAutoriseException("Vous n'êtes pas autorisé à soumettre ce projet.");
         }
 
-        // 🚀 CORRECTIF : On vérifie que le statut actuel permet bien une soumission (soit EN_COUR, soit A_CORRIGER)
         if (pe.getStatutEtape() == StatutEtapeEnum.SOUMIS || pe.getStatutEtape() == StatutEtapeEnum.VALIDE) {
             throw new OperationInterditeException("Cette étape a déjà été soumise ou validée.");
         }
@@ -226,7 +222,6 @@ public class ProjetEtapeService {
         // Sécurité sur le nombre de questions uniques ayant reçu une réponse
         int totalQuestions = pe.getEtape().getQuestions().size();
 
-        // 🚀 AMÉLIORATION : On compte le nombre de questions UNIQUES qui ont eu une réponse pour éviter les doublons de lignes SQL
         long questionsRepondues = pe.getReponse().stream()
                 .map(r -> r.getQuestion().getId())
                 .distinct()
@@ -242,10 +237,10 @@ public class ProjetEtapeService {
 
         ProjetEtape saved = projetEtapeRepository.save(pe);
 
-        // 🚀 CORRECTIF : On caste et on type explicitement en (MentorProjet) pour débloquer le getMentor()
+        //  On caste et on type explicitement en (MentorProjet) pour débloquer le getMentor()
         mentorProjetRepository.findByProjetIdAndStatut(saved.getProjet().getId(), StatutDemandeMentoratEnum.ACCEPTEE)
                 .ifPresent(obj -> {
-                    wassa.mp.startup.model.MentorProjet liaison = (wassa.mp.startup.model.MentorProjet) obj;
+                    MentorProjet liaison = (MentorProjet) obj;
 
                     String alerteMsg = "Le projet " + saved.getProjet().getTitre() + " a soumis l'étape : " + saved.getEtape().getType();
                     AlerteMentoratDto alerteDto = new AlerteMentoratDto(
@@ -288,7 +283,6 @@ public class ProjetEtapeService {
     public void renvoyerEtapePourCorrection(ActionEtapeDto dto) {
         ProjetEtape pe = projetEtapeRepository.findById(dto.getProjetEtapeId())
                 .orElseThrow(() -> new ResourceNotFoundException("L'étape de projet demandée n'existe pas."));
-
         pe.setStatutEtape(StatutEtapeEnum.A_REVOIR);
         pe.setCommentaireMentor(dto.getCommentaireMentor());
         pe.setDateValidation(null);
