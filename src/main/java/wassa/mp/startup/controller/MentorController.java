@@ -11,6 +11,7 @@ import wassa.mp.startup.CustumUserDetail;
 import wassa.mp.startup.dto.*;
 import wassa.mp.startup.service.MentorProjetService;
 import wassa.mp.startup.service.MentorService;
+import wassa.mp.startup.service.ProjetEtapeService;
 
 import java.util.List;
 import java.util.Map;
@@ -25,6 +26,8 @@ public class MentorController {
 
     @Autowired
     private MentorService mentorService;
+    @Autowired
+    ProjetEtapeService projetEtapeService;
 
     @PostMapping("/proposer-accompagnement")
     public ResponseEntity<String> proposerAccompagnement(
@@ -72,4 +75,30 @@ public class MentorController {
         ProjetResponseDto projetDetail = mentorProjetService.obtenirDetailsFicheProjet(projetId);
         return ResponseEntity.ok(projetDetail);
     }
+    @GetMapping("/projet-etapes/{id}/consulter-livrable")
+    public ResponseEntity<LivrableEtapeDto> voirLivrableVirtuelInJson(@PathVariable int id) {
+        return ResponseEntity.ok(projetEtapeService.consulterLivrableEnJson(id));
+    }
+    @PutMapping("/projet-etapes/valider")
+    public ResponseEntity<String> validerEtapeOfficielle(@Valid @RequestBody ActionEtapeDto dto) {
+        projetEtapeService.validerEtapeParMentor(dto);
+        return ResponseEntity.ok("L'étape a été marquée comme validée. Le porteur de projet a été notifié.");
+    }
+    @PutMapping("/projet-etapes/renvoyer-correction")
+    public ResponseEntity<String> renvoyerEtapeCorrection(@Valid @RequestBody ActionEtapeDto dto) {
+        projetEtapeService.renvoyerEtapePourCorrection(dto);
+        return ResponseEntity.ok("L'étape a été renvoyée pour modification avec votre note de cadrage.");
+    }
+    @GetMapping("/mes-startups")
+    public ResponseEntity<List<ProjetResponseDto>> obtenirMesStartups(
+            @AuthenticationPrincipal CustumUserDetail userConnecter) {
+        List<ProjetResponseDto> list = mentorProjetService.obtenirStartupsAssigneesAuMentor(userConnecter.getUser().getId());
+        return ResponseEntity.ok(list);
+    }
+    @GetMapping("/projets/{id}/etapes")
+    public List<ProjetEtapeResponseDto> getEtapesProjet(@PathVariable int id, @AuthenticationPrincipal CustumUserDetail userConnecter){
+        return  projetEtapeService.projetEtapeResponseDtoListPourMentor(id,userConnecter);
+    }
+
+
 }

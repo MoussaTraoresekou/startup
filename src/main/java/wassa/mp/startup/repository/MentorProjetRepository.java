@@ -12,4 +12,7 @@ public interface MentorProjetRepository extends JpaRepository<MentorProjet,Integ
     List<MentorProjet> findByMentorId(int mentorId);
 
 
+    List<MentorProjet> findByMentorIdAndStatut(int mentorId, StatutDemandeMentoratEnum statutDemandeMentoratEnum);
+
+    Optional<Object> findByProjetIdAndStatut(int id, StatutDemandeMentoratEnum statutDemandeMentoratEnum);
 }

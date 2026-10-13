@@ -34,10 +34,6 @@ public class NotificationSseService {
         return emitter;
     }
 
-    /**
-     * Envoie une notification persistante au frontend.
-     * La notification doit déjà avoir été enregistrée en base.
-     */
     public void envoyerNotificationEnTempsReel(
             int utilisateurId,
             NotificationResponseDto notificationDto) {
