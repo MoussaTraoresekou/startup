@@ -9,6 +9,7 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 import wassa.mp.startup.CustumUserDetail;
 import wassa.mp.startup.dto.*;
+import wassa.mp.startup.model.Candidature;
 import wassa.mp.startup.model.Projet;
 import wassa.mp.startup.model.ProjetEtape;
 import wassa.mp.startup.model.Reponse;
@@ -48,6 +49,8 @@ public class PorteurController {
 
     @Autowired
     private OffresService offresService;
+    @Autowired
+    private CandidatureService candidatureService;
 
     @PostMapping("/register")
     public ResponseEntity<PorteurResponseDto> createPorteur(@RequestBody PorteurRequestDto porteurRequestDto) {
@@ -162,17 +165,38 @@ public class PorteurController {
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(offresService.publierAppelCandidature(dto, userConnecter));
     }
-
+/*
     @GetMapping("/offres/{id}/candidatures")
     public ResponseEntity<List<CandidatureResponseDto>> obtenirCandidatures(
             @PathVariable int id,
             @AuthenticationPrincipal CustumUserDetail userConnecter) {
         return ResponseEntity.ok(offresService.obtenirCandidaturesPourUneOffre(id, userConnecter));
     }
+
+ */
+    @GetMapping("/projets/{id}/candidatures-recues")
+    public ResponseEntity<List<CandidatureResponseDto>> obtenirCandidaturesDuProjet(
+            @PathVariable int id,
+            @AuthenticationPrincipal CustumUserDetail userConnecter) {
+        return ResponseEntity.ok(offresService.obtenirToutesLesCandidaturesDuProjet(id, userConnecter));
+    }
+
     @GetMapping("/projets/{id}/equipe-complete")
     public ResponseEntity<List<MembreEquipeDto>> getEquipeProjetComplete(
             @PathVariable int id,
             @AuthenticationPrincipal CustumUserDetail userConnecter) {
         return ResponseEntity.ok(projetService.calculerEquipeProjetComplete(id));
     }
+    @PutMapping("/candidatures/{id}/accepter")
+    public ResponseEntity<Map<String, String>> accepterCandidature(@PathVariable int id){
+        candidatureService.validerCandidature(id);
+        return ResponseEntity.ok(Map.of("message","candadature acceptée avec succes"));
+    }
+    @PutMapping("/candidatures/{id}/refuser")
+    public ResponseEntity<Map<String, String>> refuserCandidature(@PathVariable int id){
+        candidatureService.refuserCandidature(id);
+        return ResponseEntity.ok(Map.of("message","candidature refusée avec succes"));
+    }
+
+
 }

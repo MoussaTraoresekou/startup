@@ -17,4 +17,10 @@ public interface CandidatureRepository extends JpaRepository<Candidature, Intege
     List<Candidature> findByOffresIdAndStatuCandidature(int offresId, EnumCandidature statuCandidature);
 
     List<Candidature> findByOffresProjetIdAndStatuCandidature(int projetId, EnumCandidature enumCandidature);
+    List<Candidature> findByOffresProjetId(int projetId);
+
+
+
+
+
 }

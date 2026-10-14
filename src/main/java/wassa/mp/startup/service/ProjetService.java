@@ -6,12 +6,14 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.stereotype.Service;
 import wassa.mp.startup.CustumUserDetail;
 import wassa.mp.startup.Enumeration.EnumCandidature;
+import wassa.mp.startup.Enumeration.StatutDemandeMentoratEnum;
 import wassa.mp.startup.dto.MembreEquipeDto;
 import wassa.mp.startup.dto.ProjetRequestDto;
 import wassa.mp.startup.dto.ProjetResponseDto;
 import wassa.mp.startup.exception.NonAutoriseException;
 import wassa.mp.startup.exception.ResourceNotFoundException;
 import wassa.mp.startup.model.Candidature;
+import wassa.mp.startup.model.MentorProjet;
 import wassa.mp.startup.model.Porteur;
 import wassa.mp.startup.model.Projet;
 import wassa.mp.startup.repository.CandidatureRepository;
@@ -19,6 +21,7 @@ import wassa.mp.startup.repository.MentorProjetRepository;
 import wassa.mp.startup.repository.ProjetRepository;
 import wassa.mp.startup.repository.SecteurActiviteRepository;
 
+import java.util.ArrayList;
 import java.util.List;
 
 @Service
@@ -73,11 +76,12 @@ public class ProjetService {
         Projet projetModifier=projetRepository.save(projet);
         return new ProjetResponseDto(projetModifier.getId(),projetModifier.getTitre(), projetModifier.getDescription(), projetModifier.getPith_url(), projetModifier.getQuota_propose(),projetModifier.getSecteurActivite().getNom(),userConnecter.getUser().getNomComplet(),projet.getDate_creation());
     }
+    //cette methode retourne les membres d'un projet
     public List<MembreEquipeDto> calculerEquipeProjetComplete(int projetId) {
         Projet projet = projetRepository.findById(projetId)
-                .orElseThrow(() -> new wassa.mp.startup.exception.ResourceNotFoundException("Projet introuvable"));
+                .orElseThrow(() -> new ResourceNotFoundException("Projet introuvable"));
 
-        List<MembreEquipeDto> equipe = new java.util.ArrayList<>();
+        List<MembreEquipeDto> equipe = new ArrayList<>();
 
         // 1. Le Fondateur d'Origine (Le Porteur)
         equipe.add(new MembreEquipeDto(
@@ -89,9 +93,9 @@ public class ProjetService {
         ));
 
         // 2. Les Mentors (Gestion multi-mentors avec boucle sur la liste)
-        List<Object> liaisonsMentors = mentorProjetRepository.findAllByProjetIdAndStatut(projetId, wassa.mp.startup.Enumeration.StatutDemandeMentoratEnum.ACCEPTEE);
+        List<Object> liaisonsMentors = mentorProjetRepository.findAllByProjetIdAndStatut(projetId, StatutDemandeMentoratEnum.ACCEPTEE);
         for (Object obj : liaisonsMentors) {
-            wassa.mp.startup.model.MentorProjet liaison = (wassa.mp.startup.model.MentorProjet) obj;
+            MentorProjet liaison = (MentorProjet) obj;
             equipe.add(new MembreEquipeDto(
                     liaison.getMentor().getId(),
                     liaison.getMentor().getNom(),
@@ -112,7 +116,6 @@ public class ProjetService {
                     cand.getCollaborateur().getSpecialite()
             ));
         }
-
         return equipe;
     }
 

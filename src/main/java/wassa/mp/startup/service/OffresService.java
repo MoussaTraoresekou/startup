@@ -88,6 +88,7 @@ public class OffresService {
                 .toList();
     }
 
+    /*
     @Transactional(readOnly = true)
     public List<CandidatureResponseDto> obtenirCandidaturesPourUneOffre(int offresId, CustumUserDetail userConnecter) {
         Offres offre = offresRepository.findById(offresId)
@@ -101,6 +102,24 @@ public class OffresService {
                 .map(this::mapToCandidatureResponseDto)
                 .toList();
     }
+
+     */
+    @Transactional(readOnly = true)
+    public List<CandidatureResponseDto> obtenirToutesLesCandidaturesDuProjet(int projetId, CustumUserDetail userConnecter) {
+        Projet projet = projetRepository.findById(projetId)
+                .orElseThrow(() -> new ResourceNotFoundException("Le projet spécifié n'existe pas."));
+
+        // Sécurité : On vérifie que l'utilisateur connecté est bien le fondateur de ce projet
+        if (projet.getPorteur().getId() != userConnecter.getUser().getId()) {
+            throw new NonAutoriseException("Accès refusé : vous n'êtes pas le porteur de ce projet.");
+        }
+
+        //  On extrait TOUTES les candidatures de TOUTES les offres de ce projet d'un coup !
+        return candidatureRepository.findByOffresProjetId(projetId).stream()
+                .map(this::mapToCandidatureResponseDto)
+                .toList();
+    }
+
 
     private OffresResponseDto mapToOffresResponseDto(Offres offre) {
         return new OffresResponseDto(
