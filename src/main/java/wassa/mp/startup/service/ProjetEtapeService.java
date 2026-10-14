@@ -260,12 +260,10 @@ public class ProjetEtapeService {
     public void validerEtapeParMentor(ActionEtapeDto dto) {
         ProjetEtape pe = projetEtapeRepository.findById(dto.getProjetEtapeId())
                 .orElseThrow(() -> new ResourceNotFoundException("L'étape de projet demandée n'existe pas."));
-
         pe.setStatutEtape(StatutEtapeEnum.VALIDE);
         pe.setDateValidation(LocalDate.now());
         pe.setCommentaireMentor(dto.getCommentaireMentor());
         ProjetEtape saved = projetEtapeRepository.save(pe);
-
         String alerteMsg = "Félicitations ! Votre mentor a validé l'étape : " + saved.getEtape().getType();
         AlerteMentoratDto alerteDto = new AlerteMentoratDto(
                 saved.getId(),
