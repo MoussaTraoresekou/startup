@@ -10,7 +10,7 @@ import java.util.List;
 @Repository
 public interface CandidatureRepository extends JpaRepository<Candidature, Integer> {
 
-    List<Candidature> findByCollaborateurId(int collaborateurId);
+    List<Candidature> findByPorteurId(int collaborateurId);
 
     List<Candidature> findByOffresId(int offresId);
 
@@ -19,7 +19,7 @@ public interface CandidatureRepository extends JpaRepository<Candidature, Intege
     List<Candidature> findByOffresProjetIdAndStatuCandidature(int projetId, EnumCandidature enumCandidature);
     List<Candidature> findByOffresProjetId(int projetId);
 
-
+    long countByPorteurIdAndStatuCandidature(int porteurId, EnumCandidature statut);
 
 
 

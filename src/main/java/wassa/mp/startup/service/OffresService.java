@@ -14,10 +14,7 @@ import wassa.mp.startup.exception.OperationInterditeException;
 import wassa.mp.startup.exception.ResourceNotFoundException;
 import wassa.mp.startup.model.*;
 import wassa.mp.startup.Enumeration.EnumOffre;
-import wassa.mp.startup.repository.CandidatureRepository;
-import wassa.mp.startup.repository.CollaborateurRepository;
-import wassa.mp.startup.repository.OffresRepository;
-import wassa.mp.startup.repository.ProjetRepository;
+import wassa.mp.startup.repository.*;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -35,7 +32,7 @@ public class OffresService {
     private ProjetRepository projetRepository;
 
     @Autowired
-    private CollaborateurRepository collaborateurRepository;
+    private PorteurRepository porteurRepository;
 
     @Transactional
     public OffresResponseDto publierAppelCandidature(OffresRequestDto dto, CustumUserDetail userConnecter) {
@@ -67,20 +64,19 @@ public class OffresService {
             throw new OperationInterditeException("Cette offre est déjà clôturée.");
         }
 
-        Collaborateur collab = collaborateurRepository.findById(userConnecter.getUser().getId())
-                .orElseThrow(() -> new ResourceNotFoundException("Profil collaborateur introuvable."));
+        Porteur porteur = porteurRepository.findById(userConnecter.getUser().getId())
+                .orElseThrow(() -> new ResourceNotFoundException("compte n'existe  pas."));
 
         Candidature candidature = new Candidature();
         candidature.setMotivation(dto.getMotivation());
         candidature.setStatuCandidature(EnumCandidature.EN_ATTENTE);
         candidature.setDateCreation(LocalDateTime.now());
-        candidature.setCollaborateur(collab);
+        candidature.setPorteur(porteur);
         candidature.setOffres(offre);
 
         Candidature saved = candidatureRepository.save(candidature);
         return mapToCandidatureResponseDto(saved);
     }
-
     @Transactional(readOnly = true)
     public List<OffresResponseDto> obtenirToutesLesOffresOuvertes() {
         return offresRepository.findByStatuOffre(EnumOffre.OUVERTE).stream()
@@ -135,23 +131,26 @@ public class OffresService {
                 offre.getProjet().getPorteur().getNom()
         );
     }
-
     private CandidatureResponseDto mapToCandidatureResponseDto(Candidature candidature) {
+        Porteur candidat = candidature.getPorteur(); // C'est un Porteur qui joue le rôle de collaborateur
+
         return new CandidatureResponseDto(
                 candidature.getId(),
                 candidature.getStatuCandidature(),
                 candidature.getMotivation(),
                 candidature.getDateCreation(),
-                candidature.getCollaborateur().getId(),
-                candidature.getCollaborateur().getNom(),
-                candidature.getCollaborateur().getPrenom(),
-                candidature.getCollaborateur().getEmail(),
-                candidature.getCollaborateur().getTelephone(),
-                candidature.getCollaborateur().getSpecialite(),
-                candidature.getCollaborateur().getBiographie(),
-                candidature.getCollaborateur().getLienPortfolio(),
+                candidat.getId(),
+                candidat.getNom(),
+                candidat.getPrenom(),
+                candidat.getEmail(),
+                candidat.getTelephone(),
+                // 🚀 Sécurité anti-Null : On extrait proprement le texte du libellé de la spécialité
+                candidat.getSpecialite() != null ? candidat.getSpecialite().getLibelle() : "Aucune",
+                candidat.getBiographie(), // Ajusté suite au correctif de la faute de frappe
+                candidat.getLienPortfolio(),
                 candidature.getOffres().getId(),
                 candidature.getOffres().getTitre()
         );
     }
+
 }

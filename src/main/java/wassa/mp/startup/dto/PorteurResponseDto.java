@@ -12,4 +12,7 @@ public class PorteurResponseDto {
     private String prenom;
     private String telephone;
     private String email;
+    private String specialite;
+    private String biographie;
+    private String lienPortfolio;
 }
