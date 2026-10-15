@@ -109,11 +109,11 @@ public class ProjetService {
         List<Candidature> postulationsValides = candidatureRepository.findByOffresProjetIdAndStatuCandidature(projetId, EnumCandidature.ACCEPTEE);
         for (Candidature cand : postulationsValides) {
             equipe.add(new MembreEquipeDto(
-                    cand.getCollaborateur().getId(),
-                    cand.getCollaborateur().getNom(),
-                    cand.getCollaborateur().getPrenom(),
+                    cand.getPorteur().getId(),
+                    cand.getPorteur().getNom(),
+                    cand.getPorteur().getPrenom(),
                     "COLLABORATEUR",
-                    cand.getCollaborateur().getSpecialite()
+                    cand.getPorteur().getSpecialite().getLibelle()
             ));
         }
         return equipe;

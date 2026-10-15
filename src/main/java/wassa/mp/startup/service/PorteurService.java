@@ -54,7 +54,10 @@ public class PorteurService {
                 pourAjouter.getNom(),
                 pourAjouter.getPrenom(),
                 pourAjouter.getTelephone(),
-                pourAjouter.getEmail()
+                pourAjouter.getEmail(),
+                pourAjouter.getSpecialite().getLibelle(),
+                pourAjouter.getBiographie(),
+                pourAjouter.getLienPortfolio()
         );
     }
 

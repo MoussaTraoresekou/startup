@@ -198,5 +198,16 @@ public class PorteurController {
         return ResponseEntity.ok(Map.of("message","candidature refusée avec succes"));
     }
 
+    @PostMapping("/offres/postuler")
+    public ResponseEntity<CandidatureResponseDto> postulerOffre(@Valid @RequestBody CandidatureRequestDto dto, @AuthenticationPrincipal CustumUserDetail userConnecter) {
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(offresService.postulerAUneOffre(dto, userConnecter));
+    }
+
+    @GetMapping("/offres/ouvertes")
+    public ResponseEntity<List<OffresResponseDto>> obtenirOffresOuvertes() {
+        return ResponseEntity.ok(offresService.obtenirToutesLesOffresOuvertes());
+    }
+
 
 }
