@@ -5,10 +5,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import wassa.mp.startup.CustumUserDetail;
 import wassa.mp.startup.Enumeration.EnumCandidature;
-import wassa.mp.startup.dto.CandidatureRequestDto;
-import wassa.mp.startup.dto.CandidatureResponseDto;
-import wassa.mp.startup.dto.OffresRequestDto;
-import wassa.mp.startup.dto.OffresResponseDto;
+import wassa.mp.startup.dto.*;
 import wassa.mp.startup.exception.NonAutoriseException;
 import wassa.mp.startup.exception.OperationInterditeException;
 import wassa.mp.startup.exception.ResourceNotFoundException;
@@ -33,7 +30,9 @@ public class OffresService {
 
     @Autowired
     private PorteurRepository porteurRepository;
-
+    @Autowired
+    private NotificationService notificationService;
+/*
     @Transactional
     public OffresResponseDto publierAppelCandidature(OffresRequestDto dto, CustumUserDetail userConnecter) {
         Projet projet = projetRepository.findById(dto.getProjetId())
@@ -55,6 +54,45 @@ public class OffresService {
         return mapToOffresResponseDto(saved);
     }
 
+ */
+@Transactional
+public OffresResponseDto publierAppelCandidature(OffresRequestDto dto, CustumUserDetail userConnecter) {
+    Projet projet = projetRepository.findById(dto.getProjetId())
+            .orElseThrow(() -> new ResourceNotFoundException("Le projet spécifié n'existe pas."));
+
+    if (projet.getPorteur().getId() != userConnecter.getUser().getId()) {
+        throw new NonAutoriseException("Vous n'êtes pas le propriétaire de ce projet.");
+    }
+
+    Offres offre = new Offres();
+    offre.setTitre(dto.getTitre());
+    offre.setDescription(dto.getDescription());
+    offre.setProfilRecherche(dto.getProfilRecherche());
+    offre.setDatePublication(LocalDateTime.now());
+    offre.setStatuOffre(EnumOffre.OUVERTE);
+    offre.setProjet(projet);
+
+    Offres saved = offresRepository.save(offre);
+
+    List<Porteur> autresPorteurs = porteurRepository.findByIdNot(userConnecter.getUser().getId());
+
+    String msgAlerte = "Nouvelle opportunité : Le projet " + projet.getTitre() + " recherche un " + saved.getTitre();
+    AlerteOffreDto alerteDto = new AlerteOffreDto(
+            saved.getId(),
+            projet.getId(),
+            projet.getTitre(),
+            msgAlerte,
+            LocalDateTime.now()
+    );
+
+    for (Porteur destinataire : autresPorteurs) {
+        notificationService.notifierUtilisateur(destinataire, alerteDto);
+    }
+
+    return mapToOffresResponseDto(saved);
+}
+
+/*
     @Transactional
     public CandidatureResponseDto postulerAUneOffre(CandidatureRequestDto dto, CustumUserDetail userConnecter) {
         Offres offre = offresRepository.findById(dto.getOffresId())
@@ -77,12 +115,106 @@ public class OffresService {
         Candidature saved = candidatureRepository.save(candidature);
         return mapToCandidatureResponseDto(saved);
     }
+
+ */
     @Transactional(readOnly = true)
-    public List<OffresResponseDto> obtenirToutesLesOffresOuvertes() {
+    public List<OffresResponseDto> obtenirToutesMesOffres() {
         return offresRepository.findByStatuOffre(EnumOffre.OUVERTE).stream()
                 .map(this::mapToOffresResponseDto)
                 .toList();
     }
+
+/*
+@Transactional
+public CandidatureResponseDto postulerAUneOffre(CandidatureRequestDto dto, CustumUserDetail userConnecter) {
+    Offres offre = offresRepository.findById(dto.getOffresId())
+            .orElseThrow(() -> new ResourceNotFoundException("L'annonce spécifiée n'existe pas."));
+
+    if (offre.getStatuOffre() == EnumOffre.CLOTUREE) {
+        throw new OperationInterditeException("Cette offre est déjà clôturée.");
+    }
+
+    Porteur porteur = porteurRepository.findById(userConnecter.getUser().getId())
+            .orElseThrow(() -> new ResourceNotFoundException("Compte n'existe pas."));
+
+    if (offre.getProjet().getPorteur().getId() == porteur.getId()) {
+        throw new OperationInterditeException("Vous ne pouvez pas postuler à votre propre offre.");
+    }
+
+    Candidature candidature = new Candidature();
+    candidature.setMotivation(dto.getMotivation());
+    candidature.setStatuCandidature(EnumCandidature.EN_ATTENTE);
+    candidature.setDateCreation(LocalDateTime.now());
+    candidature.setPorteur(porteur);
+    candidature.setOffres(offre);
+
+    Candidature saved = candidatureRepository.save(candidature);
+
+    Porteur proprietaireProjet = offre.getProjet().getPorteur();
+
+    String msgAlerte = porteur.getPrenom() + " " + porteur.getNom() + " a postulé pour l'offre : " + offre.getTitre();
+    AlerteCandidature alerteDto = new AlerteCandidature(
+            saved.getId(),
+            offre.getProjet().getId(),
+            offre.getProjet().getTitre(),
+            porteur.getId(),
+            porteur.getNomComplet(),
+            msgAlerte,
+            LocalDateTime.now()
+    );
+
+    notificationService.notifierUtilisateur(proprietaireProjet, alerteDto);
+
+    return mapToCandidatureResponseDto(saved);
+}
+
+ */
+@Transactional
+public CandidatureResponseDto postulerAUneOffre(CandidatureRequestDto dto, CustumUserDetail userConnecter) {
+    Offres offre = offresRepository.findById(dto.getOffresId())
+            .orElseThrow(() -> new ResourceNotFoundException("L'annonce spécifiée n'existe pas."));
+
+    if (offre.getStatuOffre() == EnumOffre.CLOTUREE) {
+        throw new OperationInterditeException("Cette offre est déjà clôturée.");
+    }
+
+    Porteur porteur = porteurRepository.findById(userConnecter.getUser().getId())
+            .orElseThrow(() -> new ResourceNotFoundException("Compte n'existe pas."));
+
+    // 🚨 BARRIÈRE DE SÉCURITÉ : Interdit la double postulation
+    if (candidatureRepository.existsByPorteurIdAndOffresId(porteur.getId(), offre.getId())) {
+        throw new OperationInterditeException("Vous avez déjà postulé à cet appel à candidature.");
+    }
+
+    if (offre.getProjet().getPorteur().getId() == porteur.getId()) {
+        throw new OperationInterditeException("Vous ne pouvez pas postuler à votre propre offre.");
+    }
+
+    Candidature candidature = new Candidature();
+    candidature.setMotivation(dto.getMotivation());
+    candidature.setStatuCandidature(EnumCandidature.EN_ATTENTE);
+    candidature.setDateCreation(LocalDateTime.now());
+    candidature.setPorteur(porteur);
+    candidature.setOffres(offre);
+
+    Candidature saved = candidatureRepository.save(candidature);
+
+    // ... Reste de votre code d'alerte SSE intact ...
+    return mapToCandidatureResponseDto(saved);
+}
+
+
+    @Transactional(readOnly = true)
+    public List<OffresResponseDto> obtenirToutesLesOffresOuvertes(CustumUserDetail userConnecter) {
+        int idUtilisateurConnecte = userConnecter.getUser().getId(); // Récupère l'ID de l'utilisateur connecté
+
+        return offresRepository.findByStatuOffre(EnumOffre.OUVERTE).stream()
+                // 💡 On filtre : on ne garde que les offres dont l'auteur N'EST PAS l'utilisateur connecté
+                .filter(offre -> offre.getProjet().getPorteur().getId() != idUtilisateurConnecte)
+                .map(this::mapToOffresResponseDto)
+                .toList();
+    }
+
 
     /*
     @Transactional(readOnly = true)

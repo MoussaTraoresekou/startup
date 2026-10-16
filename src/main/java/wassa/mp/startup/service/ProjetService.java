@@ -40,16 +40,27 @@ public class ProjetService {
                           projet -> new ProjetResponseDto(projet.getId(), projet.getTitre(), projet.getDescription(), projet.getPith_url(), projet.getQuota_propose(), projet.getSecteurActivite().getNom(),userConnecter.getUser().getNomComplet(),projet.getDate_creation())
                   ).toList();
     }
-    public Projet creaProjet(ProjetRequestDto projetRequestDto,  @AuthenticationPrincipal CustumUserDetail userConnecter){
-         Projet projet=new Projet();
-         projet.setDescription(projetRequestDto.getDescription());
-         projet.setPith_url(projetRequestDto.getPith_url());
-         projet.setTitre(projetRequestDto.getTitre());
-         projet.setQuota_propose(projetRequestDto.getQuota_propose());
-         projet.setPorteur((Porteur) userConnecter.getUser());
-         projet.setSecteurActivite(secteurActiviteRepository.findById(projetRequestDto.getSecteur_id()).get());
-         return projetRepository.save(projet);
+    @Transactional
+    public Projet creaProjet(ProjetRequestDto projetRequestDto, @AuthenticationPrincipal CustumUserDetail userConnecter) {
+        Porteur porteurActuel = (Porteur) userConnecter.getUser();
+
+        long nombreProjetsExistants = projetRepository.countByPorteurId(porteurActuel.getId());
+        if (nombreProjetsExistants >= 2) {
+            throw new IllegalArgumentException("Limite atteinte : Vous ne pouvez pas créer plus de 2 projets dans l'incubateur.");
+        }
+
+        Projet projet = new Projet();
+        projet.setDescription(projetRequestDto.getDescription());
+        projet.setPith_url(projetRequestDto.getPith_url());
+        projet.setTitre(projetRequestDto.getTitre());
+        projet.setQuota_propose(projetRequestDto.getQuota_propose());
+        projet.setPorteur(porteurActuel);
+        projet.setSecteurActivite(secteurActiviteRepository.findById(projetRequestDto.getSecteur_id())
+                .orElseThrow(() -> new ResourceNotFoundException("Secteur d'activité introuvable")));
+
+        return projetRepository.save(projet);
     }
+
     public ProjetResponseDto getProjetByid(int id,@AuthenticationPrincipal CustumUserDetail userConnecter){
         Projet projet=projetRepository.findById(id).orElseThrow(
                 ()-> new ResourceNotFoundException("Projet n'existe pas")

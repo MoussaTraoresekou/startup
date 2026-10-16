@@ -80,7 +80,8 @@ public class SecurityConfig {
                                 "/swagger-ui.html",
                                 "/v3/api-docs/**",
                                 "/api/email/**",
-                                "/api/secteur/**"
+                                "/api/secteur/**" ,
+                                "/api/specialites/**"
                         ).permitAll()
 
                         // Routes réservées aux rôles

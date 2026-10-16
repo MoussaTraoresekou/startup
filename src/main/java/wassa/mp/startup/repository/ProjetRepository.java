@@ -14,4 +14,5 @@ public interface ProjetRepository extends JpaRepository<Projet, Integer> {
     List<Projet> findByPorteur(@Param("porteur_id") int porteur_id);
 
 
+    long countByPorteurId(int id);
 }

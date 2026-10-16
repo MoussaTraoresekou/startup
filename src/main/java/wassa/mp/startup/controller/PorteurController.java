@@ -15,6 +15,7 @@ import wassa.mp.startup.model.ProjetEtape;
 import wassa.mp.startup.model.Reponse;
 import wassa.mp.startup.service.*;
 
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -151,12 +152,19 @@ public class PorteurController {
     }
 
     @PutMapping("/projet-etapes/{id}/soumettre")
-    public ResponseEntity<String> soumettreEtape(
+    public ResponseEntity<Map<String, String>> soumettreEtape(
             @PathVariable int id,
             @AuthenticationPrincipal CustumUserDetail userConnecter) {
+
         projetEtapeService.soumettreLivrableEtape(id, userConnecter);
-        return ResponseEntity.ok("Le questionnaire de l'étape a été compilé et soumis au mentor avec succès.");
+
+        // Renvoyer un vrai objet JSON : {"message": "..."}
+        Map<String, String> response = new HashMap<>();
+        response.put("message", "Le questionnaire de l'étape a été compilé et soumis au mentor avec succès.");
+
+        return ResponseEntity.ok(response);
     }
+
 
     @PostMapping("/offres/publier")
     public ResponseEntity<OffresResponseDto> publierOffre(
@@ -204,10 +212,18 @@ public class PorteurController {
                 .body(offresService.postulerAUneOffre(dto, userConnecter));
     }
 
-    @GetMapping("/offres/ouvertes")
+    @GetMapping("/offres")
     public ResponseEntity<List<OffresResponseDto>> obtenirOffresOuvertes() {
-        return ResponseEntity.ok(offresService.obtenirToutesLesOffresOuvertes());
+        return ResponseEntity.ok(offresService.obtenirToutesMesOffres());
     }
+    @GetMapping("/offres/ouvertes")
+    public ResponseEntity<List<OffresResponseDto>> obtenirOffresOuvertes(
+            @AuthenticationPrincipal CustumUserDetail userConnecter) {
+        List<OffresResponseDto> offres = offresService.obtenirToutesLesOffresOuvertes(userConnecter);
+
+        return ResponseEntity.ok(offres);
+    }
+
 
 
 }
