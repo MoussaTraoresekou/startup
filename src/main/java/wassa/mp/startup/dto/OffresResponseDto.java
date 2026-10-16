@@ -20,4 +20,5 @@ public class OffresResponseDto {
     private String projetTitre;
     private String porteurPrenom;
     private String porteurNom;
+    private String specialite;
 }
