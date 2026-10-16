@@ -18,4 +18,6 @@ public class Specialite {
     private String libelle;
     @OneToMany(mappedBy = "specialite")
     private List<Porteur> porteurs;
+    @OneToMany(mappedBy = "specialite")
+    private List<Offres> offres;
 }

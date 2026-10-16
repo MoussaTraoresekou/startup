@@ -37,4 +37,7 @@ public class Offres {
 
     @OneToMany(mappedBy = "offres", cascade = CascadeType.ALL)
     private List<Candidature> candidatures;
+    @ManyToOne
+    @JoinColumn(name = "specialite_id")
+    private Specialite specialite;
 }

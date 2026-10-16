@@ -14,4 +14,5 @@ public class OffresRequestDto {
     private String description;
     private String profilRecherche;
     private Integer projetId;
+    private int specialite;
 }

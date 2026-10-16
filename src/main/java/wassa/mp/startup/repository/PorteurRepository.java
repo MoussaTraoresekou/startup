@@ -14,4 +14,6 @@ public interface PorteurRepository extends JpaRepository<Porteur, Integer> {
     );
 
     List<Porteur> findByIdNot(int id);
+
+    List<Porteur> findBySpecialiteIdAndIdNot(int id, int id1);
 }

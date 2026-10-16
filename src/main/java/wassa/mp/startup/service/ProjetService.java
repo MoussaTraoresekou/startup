@@ -87,6 +87,7 @@ public class ProjetService {
         Projet projetModifier=projetRepository.save(projet);
         return new ProjetResponseDto(projetModifier.getId(),projetModifier.getTitre(), projetModifier.getDescription(), projetModifier.getPith_url(), projetModifier.getQuota_propose(),projetModifier.getSecteurActivite().getNom(),userConnecter.getUser().getNomComplet(),projet.getDate_creation());
     }
+    /*
     //cette methode retourne les membres d'un projet
     public List<MembreEquipeDto> calculerEquipeProjetComplete(int projetId) {
         Projet projet = projetRepository.findById(projetId)
@@ -116,6 +117,8 @@ public class ProjetService {
             ));
         }
 
+
+
         // 3. Les Collaborateurs issus des Appels (Candidatures ACCEPTEES)
         List<Candidature> postulationsValides = candidatureRepository.findByOffresProjetIdAndStatuCandidature(projetId, EnumCandidature.ACCEPTEE);
         for (Candidature cand : postulationsValides) {
@@ -129,6 +132,50 @@ public class ProjetService {
         }
         return equipe;
     }
+
+     */
+    public List<MembreEquipeDto> calculerEquipeProjetComplete(int projetId) {
+        Projet projet = projetRepository.findById(projetId)
+                .orElseThrow(() -> new ResourceNotFoundException("Projet introuvable"));
+
+        List<MembreEquipeDto> equipe = new ArrayList<>();
+
+        equipe.add(new MembreEquipeDto(
+                projet.getPorteur().getId(),
+                projet.getPorteur().getNom(),
+                projet.getPorteur().getPrenom(),
+                "PORTEUR",
+                "Fondateur Principal"
+        ));
+
+        List<Object> liaisonsMentors = mentorProjetRepository.findAllByProjetIdAndStatut(projetId, StatutDemandeMentoratEnum.ACCEPTEE);
+        for (Object obj : liaisonsMentors) {
+            MentorProjet liaison = (MentorProjet) obj;
+            equipe.add(new MembreEquipeDto(
+                    liaison.getMentor().getId(),
+                    liaison.getMentor().getNom(),
+                    liaison.getMentor().getPrenom(),
+                    "MENTOR",
+                    "Mentor Accompagnateur"
+            ));
+        }
+
+        List<Candidature> candidaturesAcceptees = candidatureRepository.findByOffresProjetIdAndStatuCandidature(projetId, EnumCandidature.ACCEPTEE);
+        for (Candidature cand : candidaturesAcceptees) {
+            if (cand.getPorteur() != null) {
+                equipe.add(new MembreEquipeDto(
+                        cand.getPorteur().getId(),
+                        cand.getPorteur().getNom(),
+                        cand.getPorteur().getPrenom(),
+                        "COLLABORATEUR",
+                        cand.getOffres().getTitre()
+                ));
+            }
+        }
+
+        return equipe;
+    }
+
 
 
 }
