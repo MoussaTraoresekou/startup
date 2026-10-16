@@ -20,6 +20,8 @@ public interface CandidatureRepository extends JpaRepository<Candidature, Intege
     List<Candidature> findByOffresProjetId(int projetId);
 
     long countByPorteurIdAndStatuCandidature(int porteurId, EnumCandidature statut);
+    boolean existsByPorteurIdAndOffresId(int porteurId, int offresId);
+
 
 
 

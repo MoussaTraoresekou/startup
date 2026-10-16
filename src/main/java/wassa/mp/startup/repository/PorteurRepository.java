@@ -13,4 +13,5 @@ public interface PorteurRepository extends JpaRepository<Porteur, Integer> {
             String keywordBiographie
     );
 
+    List<Porteur> findByIdNot(int id);
 }

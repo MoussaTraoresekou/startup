@@ -10,6 +10,7 @@ public class Reponse {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private int id;
+    @Column(columnDefinition = "text")
     private  String reponse;
     @ManyToOne
     private ProjetEtape projetEtape;

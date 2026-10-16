@@ -8,6 +8,7 @@ import wassa.mp.startup.dto.PorteurRequestDto;
 import wassa.mp.startup.dto.PorteurResponseDto;
 import wassa.mp.startup.model.Porteur;
 import wassa.mp.startup.repository.PorteurRepository;
+import wassa.mp.startup.repository.SpecialiteRepository;
 
 import java.time.LocalDate;
 
@@ -16,12 +17,12 @@ public class PorteurService {
     private final PorteurRepository porteurRepository;
     private final BCryptPasswordEncoder bCryptPasswordEncoder;
     private final EmailVerificationService emailVerificationService;
-    //private final PorteurMapper porteurMapper;
-    public PorteurService(PorteurRepository porteurRepository,BCryptPasswordEncoder bCryptPasswordEncoder,EmailVerificationService emailVerificationService) {
+    private  final SpecialiteRepository specialiteRepository;
+    public PorteurService(PorteurRepository porteurRepository,BCryptPasswordEncoder bCryptPasswordEncoder,EmailVerificationService emailVerificationService,SpecialiteRepository specialiteRepository) {
         this.porteurRepository = porteurRepository;
         this.bCryptPasswordEncoder = bCryptPasswordEncoder;
         this.emailVerificationService=emailVerificationService;
-        //this.porteurMapper = porteurMapper;
+        this.specialiteRepository=specialiteRepository;
     }
     //l'incription d'un porteur de projet
     @Transactional
@@ -43,6 +44,10 @@ public class PorteurService {
         porteur.setTelephone(porteurRequestDto.getTelephone());
         porteur.setDateCreation(LocalDate.now());
         porteur.setRole(RoleEnum.PORTEUR);
+        porteur.setSpecialite(specialiteRepository.findById(porteurRequestDto.getSpecialite_id()).get());
+        porteur.setBiographie(porteurRequestDto.getBiographie());
+        porteur.setLienPortfolio(porteurRequestDto.getLienPortfolio());
+
 
         Porteur pourAjouter = porteurRepository.save(porteur);
 

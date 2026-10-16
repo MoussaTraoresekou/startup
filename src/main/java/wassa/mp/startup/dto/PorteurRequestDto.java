@@ -12,7 +12,7 @@ public class PorteurRequestDto {
     private String telephone;
     private String email;
     private String password;
-    private String specialite;
+    private int specialite_id;
     private String biographie;
     private String lienPortfolio;
 }

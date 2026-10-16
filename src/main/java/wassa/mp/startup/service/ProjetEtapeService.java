@@ -205,7 +205,7 @@ public class ProjetEtapeService {
     }
 
      */
-
+/*
     @Transactional
     public void soumettreLivrableEtape(int projetEtapeId, CustumUserDetail userConnecter) {
         ProjetEtape pe = projetEtapeRepository.findById(projetEtapeId)
@@ -253,6 +253,60 @@ public class ProjetEtapeService {
                     );
                     notificationService.notifierUtilisateur(liaison.getMentor(), alerteDto);
                 });
+    }
+
+
+
+ */
+    @Transactional
+    public void soumettreLivrableEtape(int projetEtapeId, CustumUserDetail userConnecter) {
+        ProjetEtape pe = projetEtapeRepository.findById(projetEtapeId)
+                .orElseThrow(() -> new ResourceNotFoundException("L'étape de projet demandée n'existe pas."));
+
+        if (pe.getProjet().getPorteur().getId() != userConnecter.getUser().getId()) {
+            throw new NonAutoriseException("Vous n'êtes pas autorisé à soumettre ce projet.");
+        }
+
+        if (pe.getStatutEtape() == StatutEtapeEnum.SOUMIS || pe.getStatutEtape() == StatutEtapeEnum.VALIDE) {
+            throw new OperationInterditeException("Cette étape a déjà été soumise ou validée.");
+        }
+
+        int totalQuestions = pe.getEtape().getQuestions().size();
+
+        long questionsRepondues = pe.getReponse().stream()
+                .map(r -> r.getQuestion().getId())
+                .distinct()
+                .count();
+
+        if (questionsRepondues < totalQuestions) {
+            throw new OperationInterditeException("Veuillez répondre à toutes les questions avant de soumettre ("
+                    + questionsRepondues + "/" + totalQuestions + " complétées).");
+        }
+
+        List<Object> liaisonsMentors = mentorProjetRepository.findAllByProjetIdAndStatut(pe.getProjet().getId(), StatutDemandeMentoratEnum.ACCEPTEE);
+        if (liaisonsMentors.isEmpty()) {
+            throw new OperationInterditeException(" aucun mentor n'est affecté à ce projet pour le moment. veuillez  entrer  en contact avec un");
+        }
+
+        pe.setStatutEtape(StatutEtapeEnum.SOUMIS);
+        pe.setDateSoumission(LocalDate.now());
+
+        ProjetEtape saved = projetEtapeRepository.save(pe);
+
+        String alerteMsg = "Le projet " + saved.getProjet().getTitre() + " a soumis l'étape : " + saved.getEtape().getType();
+        AlerteMentoratDto alerteDto = new AlerteMentoratDto(
+                saved.getId(),
+                alerteMsg,
+                saved.getProjet().getPorteur().getPrenom(),
+                "PORTEUR",
+                saved.getProjet().getTitre(),
+                java.time.LocalDateTime.now()
+        );
+
+        for (Object obj : liaisonsMentors) {
+            MentorProjet liaison = (MentorProjet) obj;
+            notificationService.notifierUtilisateur(liaison.getMentor(), alerteDto);
+        }
     }
 
 
