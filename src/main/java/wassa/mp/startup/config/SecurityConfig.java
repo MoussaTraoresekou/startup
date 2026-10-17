@@ -1,4 +1,3 @@
-
 package wassa.mp.startup.config;
 
 import java.util.List;
@@ -43,13 +42,13 @@ public class SecurityConfig {
         httpSecurity
                 .csrf(csrf -> csrf.disable())
 
-                .cors(cors -> {})
+                // CORRECTION : Associe explicitement le filtre CORS au Bean CorsConfigurationSource défini plus bas
+                .cors(cors -> cors.configurationSource(corsConfigurationSource()))
 
                 .sessionManagement(session -> session
                         .sessionCreationPolicy(SessionCreationPolicy.STATELESS)
                 )
 
-                // Gestion centralisée des erreurs d'authentification et d'accès.
                 .exceptionHandling(exception -> exception
                         .authenticationEntryPoint((request, response, authException) -> {
                             response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
@@ -70,11 +69,10 @@ public class SecurityConfig {
                 )
 
                 .authorizeHttpRequests(request -> request
-
-                        // Routes publiques
                         .requestMatchers(
                                 "/api/user/login",
                                 "/api/porteur/register",
+                                "/api/investisseur/register",
                                 "/api/mentor/register",
                                 "/swagger-ui/**",
                                 "/swagger-ui.html",
@@ -84,7 +82,6 @@ public class SecurityConfig {
                                 "/api/specialites/**"
                         ).permitAll()
 
-                        // Routes réservées aux rôles
                         .requestMatchers("/api/admin/**").hasRole("ADMIN")
                         .requestMatchers("/api/porteur/**").hasRole("PORTEUR")
                         .requestMatchers("/api/mentor/**").hasRole("MENTOR")
@@ -92,8 +89,6 @@ public class SecurityConfig {
                         .requestMatchers("/api/investisseur/**").hasRole("INVESTISSEUR")
 
                         .requestMatchers("/api/notifications/**").authenticated()
-
-                        // Toutes les autres routes nécessitent une authentification.
                         .anyRequest().authenticated()
                 )
 
@@ -109,12 +104,10 @@ public class SecurityConfig {
 
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
-
         CorsConfiguration configuration = new CorsConfiguration();
 
-        configuration.setAllowedOrigins(
-                List.of("http://localhost:4200")
-        );
+        // AMÉLIORATION : Autorise toutes les adresses IP (dont votre smartphone connecté en Wi-Fi) en phase de dev
+        configuration.setAllowedOriginPatterns(List.of("*"));
 
         configuration.setAllowedMethods(
                 List.of("GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS")
@@ -128,11 +121,10 @@ public class SecurityConfig {
                 List.of("Authorization")
         );
 
+        // Doit obligatoirement être à true pour s'aligner avec l'usage du pattern d'origine générique "*"
         configuration.setAllowCredentials(true);
 
-        UrlBasedCorsConfigurationSource source =
-                new UrlBasedCorsConfigurationSource();
-
+        UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/**", configuration);
 
         return source;
@@ -145,19 +137,14 @@ public class SecurityConfig {
 
     @Bean
     public AuthenticationProvider authenticationProvider() {
-
-        DaoAuthenticationProvider provider =
-                new DaoAuthenticationProvider(userDetailsService);
-
+        DaoAuthenticationProvider provider = new DaoAuthenticationProvider(userDetailsService);
         provider.setPasswordEncoder(bCryptPasswordEncoder());
-
         return provider;
     }
 
     @Bean
     public AuthenticationManager authenticationManager(
             AuthenticationConfiguration configuration) throws Exception {
-
         return configuration.getAuthenticationManager();
     }
 }
