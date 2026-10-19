@@ -177,5 +177,28 @@ public class ProjetService {
     }
 
 
+    @Transactional
+    public List<ProjetResponseDto> obtenirProjetsParSecteurs(List<Integer> secteurIds) {
+        if (secteurIds == null || secteurIds.isEmpty()) {
+            return java.util.Collections.emptyList();
+        }
+
+        // 1. Récupération des projets liés à ces secteurs d'activité depuis votre repository
+        List<Projet> projets = projetRepository.findBySecteurActiviteIdIn(secteurIds);
+
+        // 2. Conversion (Mapping) des entités Projet vers la liste de ProjetResponseDto
+        return projets.stream()
+                .map(projet -> new ProjetResponseDto(
+                        projet.getId(),
+                        projet.getTitre(),
+                        projet.getDescription(),
+                        projet.getPith_url(), // ou projet.getPithUrl() selon vos attributs d'entité
+                        projet.getQuota_propose(),
+                        projet.getSecteurActivite() != null ? projet.getSecteurActivite().getNom() : "Général",
+                        projet.getPorteur() != null ? projet.getPorteur().getNomComplet() : "Anonyme",
+                        projet.getDate_creation() // Mappe votre LocalDate date_creation
+                ))
+                .toList();
+    }
 
 }
