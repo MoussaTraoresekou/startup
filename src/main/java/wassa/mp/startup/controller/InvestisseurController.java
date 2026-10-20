@@ -126,8 +126,7 @@ public class InvestisseurController {
     }
 
     @GetMapping("/projet/{projetId}/commentaires")
-    public ResponseEntity<List<CommentaireResponseDto>> listerCommentaires(
-            @PathVariable int projetId,
+    public ResponseEntity<List<CommentaireResponseDto>> listerCommentaires(@PathVariable int projetId,
             @AuthenticationPrincipal CustumUserDetail userConnecter) {
 
         List<CommentaireResponseDto> commentaires = commentaireService.lister(

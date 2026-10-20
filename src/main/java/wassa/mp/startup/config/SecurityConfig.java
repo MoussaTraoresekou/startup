@@ -89,6 +89,7 @@ public class SecurityConfig {
                         .requestMatchers("/api/investisseur/**").hasRole("INVESTISSEUR")
 
                         .requestMatchers("/api/notifications/**").authenticated()
+                        .requestMatchers("/api/conversations/**").authenticated()
                         .anyRequest().authenticated()
                 )
 
