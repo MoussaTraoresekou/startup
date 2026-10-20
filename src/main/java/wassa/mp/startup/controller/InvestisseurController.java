@@ -11,11 +11,11 @@ import org.springframework.web.bind.annotation.*;
 import wassa.mp.startup.CustumUserDetail;
 import wassa.mp.startup.dto.*;
 import wassa.mp.startup.model.Investisseur;
-import wassa.mp.startup.service.InvestisseurService;
-import wassa.mp.startup.service.MentorProjetService;
-import wassa.mp.startup.service.ProjetService;
+import wassa.mp.startup.service.*;
 
 import java.util.List;
+import java.util.Map;
+
 @RestController
 @RequestMapping("/api/investisseur")
 @RequiredArgsConstructor
@@ -27,6 +27,9 @@ public class InvestisseurController {
     private final InvestisseurService registrationService;
     private final MentorProjetService mentorProjetService;
     private final ProjetService projetService;
+    private final ProjetLikeService likeService;
+    private final ProjetCommentaireService commentaireService;
+
 
     /**
      * Route publique d'inscription pour les investisseurs.
@@ -86,6 +89,53 @@ public class InvestisseurController {
         }
 
         return ResponseEntity.ok(projets);
+    }
+    /** Aimer / ne plus aimer un projet (bascule). */
+    @PostMapping("/projet/{projetId}/like")
+    public ResponseEntity<Map<String, Object>> basculerLike(
+            @PathVariable int projetId,
+            @AuthenticationPrincipal CustumUserDetail userConnecter) {
+
+        boolean liked = likeService.basculer(userConnecter.getUser().getEmail(), projetId);
+
+        return ResponseEntity.ok(Map.of(
+                "liked", liked,
+                "nombreLikes", likeService.nombreLikes(projetId)
+        ));
+    }
+
+    /** Identifiants des projets déjà aimés par l'investisseur connecté. */
+    @GetMapping("/likes")
+    public ResponseEntity<List<Integer>> mesLikes(@AuthenticationPrincipal CustumUserDetail userConnecter) {
+        return ResponseEntity.ok(likeService.projetsLikes(userConnecter.getUser().getEmail()));
+    }
+
+    @PostMapping("/projet/{projetId}/commentaires")
+    public ResponseEntity<CommentaireResponseDto> ajouterCommentaire(
+            @PathVariable int projetId,
+            @Valid @RequestBody CommentaireRequestDto request,
+            @AuthenticationPrincipal CustumUserDetail userConnecter) {
+
+        CommentaireResponseDto commentaire = commentaireService.ajouter(
+                userConnecter.getUser().getEmail(),
+                projetId,
+                request.getContenu()
+        );
+
+        return ResponseEntity.status(HttpStatus.CREATED).body(commentaire);
+    }
+
+    @GetMapping("/projet/{projetId}/commentaires")
+    public ResponseEntity<List<CommentaireResponseDto>> listerCommentaires(
+            @PathVariable int projetId,
+            @AuthenticationPrincipal CustumUserDetail userConnecter) {
+
+        List<CommentaireResponseDto> commentaires = commentaireService.lister(
+                userConnecter.getUser().getEmail(),
+                projetId
+        );
+
+        return ResponseEntity.ok(commentaires);
     }
 
 }
