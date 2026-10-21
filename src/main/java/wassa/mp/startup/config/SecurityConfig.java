@@ -79,7 +79,10 @@ public class SecurityConfig {
                                 "/v3/api-docs/**",
                                 "/api/email/**",
                                 "/api/secteur/**" ,
-                                "/api/specialites/**"
+                                "/api/specialites/**",
+                                // Autoriser uniquement la négociation initiale WebSocket
+                                "/ws",
+                                "/ws/**"
                         ).permitAll()
 
                         .requestMatchers("/api/admin/**").hasRole("ADMIN")
