@@ -17,4 +17,7 @@ public interface ProjetLikeRepository extends JpaRepository<ProjetLike, Integer>
 
     @Query("SELECT l.projet.id FROM ProjetLike l WHERE l.investisseur.id = :investisseurId")
     List<Integer> findProjetIdsByInvestisseur(@Param("investisseurId") int investisseurId);
+    @Query("SELECT l FROM ProjetLike l WHERE l.investisseur.id = :investisseurId")
+    List<ProjetLike> ListeProjetAimerParInv(@Param("investisseurId") int investisseurId);
+
 }

@@ -11,6 +11,7 @@ import org.springframework.web.bind.annotation.*;
 import wassa.mp.startup.CustumUserDetail;
 import wassa.mp.startup.dto.*;
 import wassa.mp.startup.model.Investisseur;
+import wassa.mp.startup.model.SecteurActivite;
 import wassa.mp.startup.service.*;
 
 import java.util.List;
@@ -136,5 +137,15 @@ public class InvestisseurController {
 
         return ResponseEntity.ok(commentaires);
     }
+    @GetMapping("/projet_aimer")
+    public ResponseEntity<List<ProjetResponseDto>> getAllProjetAimmer(@AuthenticationPrincipal CustumUserDetail userConnecter) {
+
+        return ResponseEntity.ok(likeService.getAllProjeAimerParInvestisseur(userConnecter));
+    }
+    @GetMapping("/secteurs-choisis")
+    public ResponseEntity<List<SecteurActiviteResponseDto>> getSecteurActiviteChoisi(@AuthenticationPrincipal CustumUserDetail userConnecter) {
+         return ResponseEntity.ok(profilService.getAllSecteurActivitesChoisi(userConnecter));
+    }
+
 
 }
