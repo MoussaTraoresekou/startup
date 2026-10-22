@@ -1,11 +1,13 @@
 package wassa.mp.startup.service;
 
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.repository.query.Param;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
+import wassa.mp.startup.CustumUserDetail;
 import wassa.mp.startup.Enumeration.RoleEnum;
 import wassa.mp.startup.dto.InvestorRegisterDTO;
 import wassa.mp.startup.dto.InvestorResponseDto;
@@ -130,6 +132,12 @@ public class InvestisseurService {
                 pourAjouter.getTypeInvestisseur(),
                 pourAjouter.isProfileCompleted()
         );
+    }
+    public List<SecteurActiviteResponseDto>getAllSecteurActivitesChoisi(CustumUserDetail userConnecter) {
+        return investisseurRepository.getAllSecteurChoisi(userConnecter.getUser().getId()).stream().map(
+                 secteurActivite->new SecteurActiviteResponseDto(secteurActivite.getId(),secteurActivite.getNom())
+        ).toList();
+
     }
 
 }

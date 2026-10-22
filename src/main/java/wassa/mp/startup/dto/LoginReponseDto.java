@@ -20,8 +20,6 @@ public class LoginReponseDto {
      * ni cliqué sur « Passer ».
      */
     private boolean profileCompleted = true;
-
-    /** Ancien constructeur (sans profileCompleted) : conservé pour ne rien casser. */
     public LoginReponseDto(int id, String token, String role,
                            String nom, String prenom, String email) {
         this(id, token, role, nom, prenom, email, true);
