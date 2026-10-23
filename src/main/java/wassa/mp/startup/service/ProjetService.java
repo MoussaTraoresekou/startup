@@ -16,13 +16,9 @@ import wassa.mp.startup.model.Candidature;
 import wassa.mp.startup.model.MentorProjet;
 import wassa.mp.startup.model.Porteur;
 import wassa.mp.startup.model.Projet;
-import wassa.mp.startup.repository.CandidatureRepository;
-import wassa.mp.startup.repository.MentorProjetRepository;
-import wassa.mp.startup.repository.ProjetRepository;
-import wassa.mp.startup.repository.SecteurActiviteRepository;
+import wassa.mp.startup.repository.*;
 
-import java.util.ArrayList;
-import java.util.List;
+import java.util.*;
 
 @Service
 public class ProjetService {
@@ -34,11 +30,43 @@ public class ProjetService {
     private MentorProjetRepository mentorProjetRepository;
     @Autowired
     private CandidatureRepository candidatureRepository;
+    @Autowired
+    private ProjetLikeRepository projetLikeRepository;
+    /*
     public List<ProjetResponseDto> getAllProjets(@AuthenticationPrincipal CustumUserDetail userConnecter) {
           return projetRepository.findByPorteur(userConnecter.getUser().getId())
                   .stream().map(
                           projet -> new ProjetResponseDto(projet.getId(), projet.getTitre(), projet.getDescription(), projet.getPith_url(), projet.getQuota_propose(), projet.getSecteurActivite().getNom(),userConnecter.getUser().getNomComplet(),projet.getDate_creation())
                   ).toList();
+    }
+
+     */
+
+    @Transactional
+    public List<ProjetResponseDto> getAllProjets(
+            @AuthenticationPrincipal CustumUserDetail userConnecter) {
+
+        List<Projet> projets = projetRepository.findByPorteur(
+                userConnecter.getUser().getId()
+        );
+
+        Map<Integer, Long> likes = compterLikes(projets);
+        String nomPorteur = userConnecter.getUser().getNomComplet();
+
+        return projets.stream()
+                .map(projet -> versDto(projet, nomPorteur, likes))
+                .toList();
+    }
+
+    // Tous les projets, pour un investisseur qui n'a pas choisi de secteurs.
+    @Transactional
+    public List<ProjetResponseDto> obtenirTousLesProjets() {
+        List<Projet> projets = projetRepository.findAll();
+        Map<Integer, Long> likes = compterLikes(projets);
+
+        return projets.stream()
+                .map(projet -> versDto(projet, nomPorteur(projet), likes))
+                .toList();
     }
     @Transactional
     public Projet creaProjet(ProjetRequestDto projetRequestDto, @AuthenticationPrincipal CustumUserDetail userConnecter) {
@@ -61,16 +89,27 @@ public class ProjetService {
         return projetRepository.save(projet);
     }
 
-    public ProjetResponseDto getProjetByid(int id,@AuthenticationPrincipal CustumUserDetail userConnecter){
-        Projet projet=projetRepository.findById(id).orElseThrow(
-                ()-> new ResourceNotFoundException("Projet n'existe pas")
-        );
 
-        if(projet.getPorteur().getId()!=userConnecter.getUser().getId()){
-            throw new NonAutoriseException("Vous n'êtes pas autorisé à modifier ce projet");
+    @Transactional
+    public ProjetResponseDto getProjetByid(
+            int id,
+            @AuthenticationPrincipal CustumUserDetail userConnecter) {
+
+        Projet projet = projetRepository.findById(id)
+                .orElseThrow(
+                        () -> new ResourceNotFoundException("Projet n'existe pas")
+                );
+
+        if (projet.getPorteur().getId() != userConnecter.getUser().getId()) {
+            throw new NonAutoriseException(
+                    "Vous n'êtes pas autorisé à consulter ce projet"
+            );
         }
-        return new ProjetResponseDto(projet.getId(),projet.getTitre(), projet.getDescription(), projet.getPith_url(), projet.getQuota_propose(),projet.getSecteurActivite().getNom(),userConnecter.getUser().getNomComplet(),projet.getDate_creation());
+
+        return versDtoAvecLikes(projet);
     }
+    /*
+
     public ProjetResponseDto modifierProjet(int id,@AuthenticationPrincipal CustumUserDetail userConnecter,ProjetRequestDto projetRequestDto){
         Projet projet=projetRepository.findById(id).orElseThrow(
                 ()-> new ResourceNotFoundException("Projet n'existe pas")
@@ -87,6 +126,43 @@ public class ProjetService {
         Projet projetModifier=projetRepository.save(projet);
         return new ProjetResponseDto(projetModifier.getId(),projetModifier.getTitre(), projetModifier.getDescription(), projetModifier.getPith_url(), projetModifier.getQuota_propose(),projetModifier.getSecteurActivite().getNom(),userConnecter.getUser().getNomComplet(),projet.getDate_creation());
     }
+
+     */
+
+    @Transactional
+    public ProjetResponseDto modifierProjet(
+            int id,
+            @AuthenticationPrincipal CustumUserDetail userConnecter,
+            ProjetRequestDto projetRequestDto) {
+
+        Projet projet = projetRepository.findById(id)
+                .orElseThrow(
+                        () -> new ResourceNotFoundException("Projet n'existe pas")
+                );
+
+        if (projet.getPorteur().getId() != userConnecter.getUser().getId()) {
+            throw new NonAutoriseException("Vous n'êtes pas autorisé à modifier ce projet");
+        }
+
+        projet.setPith_url(projetRequestDto.getPith_url());
+        projet.setQuota_propose(projetRequestDto.getQuota_propose());
+        projet.setDescription(projetRequestDto.getDescription());
+        projet.setTitre(projetRequestDto.getTitre());
+
+        projet.setSecteurActivite(
+                secteurActiviteRepository.findById(projetRequestDto.getSecteur_id())
+                        .orElseThrow(
+                                () -> new ResourceNotFoundException(
+                                        "Secteur d'activité introuvable"
+                                )
+                        )
+        );
+
+        Projet projetModifier = projetRepository.save(projet);
+
+        return versDtoAvecLikes(projetModifier);
+    }
+
     /*
     //cette methode retourne les membres d'un projet
     public List<MembreEquipeDto> calculerEquipeProjetComplete(int projetId) {
@@ -167,7 +243,7 @@ public class ProjetService {
                         cand.getPorteur().getId(),
                         cand.getPorteur().getNom(),
                         cand.getPorteur().getPrenom(),
-                        "COLLABORATEUR",
+                        cand.getPorteur().getSpecialite().getLibelle(),
                         cand.getOffres().getTitre()
                 ));
             }
@@ -176,7 +252,7 @@ public class ProjetService {
         return equipe;
     }
 
-
+/*
     @Transactional
     public List<ProjetResponseDto> obtenirProjetsParSecteurs(List<Integer> secteurIds) {
         if (secteurIds == null || secteurIds.isEmpty()) {
@@ -200,5 +276,67 @@ public class ProjetService {
                 ))
                 .toList();
     }
+
+ */
+
+    @Transactional
+    public List<ProjetResponseDto> obtenirProjetsParSecteurs(
+            List<Integer> secteurIds) {
+
+        if (secteurIds == null || secteurIds.isEmpty()) {
+            return Collections.emptyList();
+        }
+
+        List<Projet> projets =
+                projetRepository.findBySecteurActiviteIdIn(secteurIds);
+
+        Map<Integer, Long> likes = compterLikes(projets);
+
+        return projets.stream()
+                .map(projet -> versDto(projet, nomPorteur(projet), likes))
+                .toList();
+    }
+
+    // Compte les likes de plusieurs projets en une seule requête
+    // (au lieu d'une requête par projet).
+    private Map<Integer, Long> compterLikes(List<Projet> projets) {
+        if (projets.isEmpty()) {
+            return Collections.emptyMap();
+        }
+
+        List<Integer> ids = projets.stream().map(Projet::getId).toList();
+        Map<Integer, Long> compteurs = new HashMap<>();
+
+        for (Object[] ligne : projetLikeRepository.compterParProjets(ids)) {
+            compteurs.put(((Number) ligne[0]).intValue(), ((Number) ligne[1]).longValue());
+        }
+
+        return compteurs;
+    }
+
+    private String nomPorteur(Projet projet) {
+        return projet.getPorteur() != null ? projet.getPorteur().getNomComplet() : "Anonyme";
+    }
+
+    private ProjetResponseDto versDto(Projet projet, String nomPorteur, Map<Integer, Long> likes) {
+        ProjetResponseDto dto = new ProjetResponseDto(
+                projet.getId(),
+                projet.getTitre(),
+                projet.getDescription(),
+                projet.getPith_url(),
+                projet.getQuota_propose(),
+                projet.getSecteurActivite() != null ? projet.getSecteurActivite().getNom() : "Général",
+                nomPorteur,
+                projet.getDate_creation()
+        );
+        dto.setNombreLikes(likes.getOrDefault(projet.getId(), 0L));
+        return dto;
+    }
+
+    private ProjetResponseDto versDtoAvecLikes(Projet projet) {
+        Map<Integer, Long> likes = compterLikes(List.of(projet));
+        return versDto(projet, nomPorteur(projet), likes);
+    }
+
 
 }
