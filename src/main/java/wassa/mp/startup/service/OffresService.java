@@ -349,7 +349,7 @@
                 candidat.getEmail(),
                 candidat.getTelephone(),
                 candidat.getSpecialite() != null ? candidat.getSpecialite().getLibelle() : "Aucune",
-                candidat.getBiographie(), // Ajusté suite au correctif de la faute de frappe
+                candidat.getBiographie(),
                 candidat.getLienPortfolio(),
                 candidature.getOffres().getId(),
                 candidature.getOffres().getTitre()

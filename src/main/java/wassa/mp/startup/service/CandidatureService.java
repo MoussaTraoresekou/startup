@@ -4,11 +4,14 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import wassa.mp.startup.Enumeration.EnumCandidature;
+import wassa.mp.startup.Enumeration.EnumOffre;
 import wassa.mp.startup.dto.AlerteCandidature;
 import wassa.mp.startup.exception.ResourceNotFoundException;
 import wassa.mp.startup.model.Candidature;
+import wassa.mp.startup.model.Offres;
 import wassa.mp.startup.model.Porteur;
 import wassa.mp.startup.repository.CandidatureRepository;
+import wassa.mp.startup.repository.OffresRepository;
 import wassa.mp.startup.repository.PorteurRepository;
 
 @Service
@@ -19,6 +22,8 @@ public class CandidatureService {
     private NotificationService notificationService;
     @Autowired
     private PorteurRepository porteurRepository;
+    @Autowired
+    private OffresRepository offresRepository;
 /*
     @Transactional
     public void validerCandidature(int id) {
@@ -60,6 +65,11 @@ public void validerCandidature(int id) {
 
     String msg = "Félicitations " + saved.getPorteur().getPrenom() + " ! Votre candidature pour le projet "
             + saved.getOffres().getProjet().getTitre() + " a été acceptée.";
+    Offres offres = offresRepository.findById(saved.getOffres().getId()).orElseThrow(
+              () -> new ResourceNotFoundException("aucune offre n'est affectée à cette candidature")
+    );
+    offres.setStatuOffre(EnumOffre.CLOTUREE);
+    offresRepository.save(offres);
 
     AlerteCandidature alerteDto = new AlerteCandidature(
             saved.getId(),

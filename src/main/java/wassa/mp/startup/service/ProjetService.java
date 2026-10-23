@@ -243,7 +243,7 @@ public class ProjetService {
                         cand.getPorteur().getId(),
                         cand.getPorteur().getNom(),
                         cand.getPorteur().getPrenom(),
-                        "COLLABORATEUR",
+                        cand.getPorteur().getSpecialite().getLibelle(),
                         cand.getOffres().getTitre()
                 ));
             }
