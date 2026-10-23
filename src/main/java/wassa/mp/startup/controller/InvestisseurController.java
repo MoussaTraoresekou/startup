@@ -86,7 +86,7 @@ public class InvestisseurController {
             projets = projetService.obtenirProjetsParSecteurs(investisseur.getSecteurIds());
         } else {
             // 3. S'il a cliqué sur "Passer" ou n'a rien coché, on affiche TOUT
-            projets = projetService.getAllProjets(userConnecter);
+            projets = projetService.obtenirTousLesProjets();
         }
 
         return ResponseEntity.ok(projets);
