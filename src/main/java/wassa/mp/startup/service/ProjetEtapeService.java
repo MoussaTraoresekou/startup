@@ -35,7 +35,7 @@ public class ProjetEtapeService {
     @Autowired
     private MentorProjetRepository mentorProjetRepository;
 
-    public List<ProjetEtapeResponseDto> projetEtapeResponseDtoList(int projetId,@AuthenticationPrincipal CustumUserDetail userConnecter) {
+    public List<ProjetEtapeResponseDto> projetEtapeResponseDtoList(int projetId, CustumUserDetail userConnecter) {
         Projet projet=projetRepository.findById(projetId).orElseThrow(
                 ()-> new ResourceNotFoundException("Projet n'existe pas")
         );
@@ -49,10 +49,11 @@ public class ProjetEtapeService {
                  )
         ).toList();
     }
-    public List<ProjetEtapeResponseDto> projetEtapeResponseDtoListPourMentor(int projetId,@AuthenticationPrincipal CustumUserDetail userConnecter) {
+    public List<ProjetEtapeResponseDto> projetEtapeResponseDtoListPourMentor(int projetId, CustumUserDetail userConnecter) {
         Projet projet=projetRepository.findById(projetId).orElseThrow(
                 ()-> new ResourceNotFoundException("Projet n'existe pas")
         );
+        verifierMentorAffecte(projetId, userConnecter);
         return projetEtapeRepository.findByProjetId(projetId).stream().map(
                 projetEtape -> new ProjetEtapeResponseDto(
                         projetEtape.getId(),projetEtape.getStatutEtape(),projetEtape.getDateSoumission(),
@@ -87,7 +88,7 @@ public class ProjetEtapeService {
     }
 
      */
-    public ProjetEtape commencerEtapes(ProjetEtapesRequestDto projetEtapesRequestDto, @AuthenticationPrincipal CustumUserDetail userConnecter) {
+    public ProjetEtape commencerEtapes(ProjetEtapesRequestDto projetEtapesRequestDto,  CustumUserDetail userConnecter) {
         Projet projet = projetRepository.findById(projetEtapesRequestDto.getProjetId()).orElseThrow(
                 () -> new ResourceNotFoundException("Projet n'existe pas")
         );
@@ -283,7 +284,7 @@ public class ProjetEtapeService {
                     + questionsRepondues + "/" + totalQuestions + " complétées).");
         }
 
-        List<Object> liaisonsMentors = mentorProjetRepository.findAllByProjetIdAndStatut(pe.getProjet().getId(), StatutDemandeMentoratEnum.ACCEPTEE);
+        List<MentorProjet> liaisonsMentors = mentorProjetRepository.findAllByProjetIdAndStatut(pe.getProjet().getId(), StatutDemandeMentoratEnum.ACCEPTEE);
         if (liaisonsMentors.isEmpty()) {
             throw new OperationInterditeException(" aucun mentor n'est affecté à ce projet pour le moment. veuillez  entrer  en contact avec un");
         }
@@ -303,17 +304,21 @@ public class ProjetEtapeService {
                 java.time.LocalDateTime.now()
         );
 
-        for (Object obj : liaisonsMentors) {
-            MentorProjet liaison = (MentorProjet) obj;
-            notificationService.notifierUtilisateur(liaison.getMentor(), alerteDto);
+        for (MentorProjet mentorProjet : liaisonsMentors) {
+            notificationService.notifierUtilisateur(mentorProjet.getMentor(), alerteDto);
         }
     }
 
 
     @Transactional
-    public void validerEtapeParMentor(ActionEtapeDto dto) {
+    public void validerEtapeParMentor(ActionEtapeDto dto,CustumUserDetail userConnecter
+    ) {
         ProjetEtape pe = projetEtapeRepository.findById(dto.getProjetEtapeId())
                 .orElseThrow(() -> new ResourceNotFoundException("L'étape de projet demandée n'existe pas."));
+        verifierMentorAffecte(
+                pe.getProjet().getId(),
+                userConnecter
+        );
         pe.setStatutEtape(StatutEtapeEnum.VALIDE);
         pe.setDateValidation(LocalDate.now());
         pe.setCommentaireMentor(dto.getCommentaireMentor());
@@ -332,9 +337,13 @@ public class ProjetEtapeService {
 
 
     @Transactional
-    public void renvoyerEtapePourCorrection(ActionEtapeDto dto) {
+    public void renvoyerEtapePourCorrection(ActionEtapeDto dto,CustumUserDetail userConnecter) {
         ProjetEtape pe = projetEtapeRepository.findById(dto.getProjetEtapeId())
                 .orElseThrow(() -> new ResourceNotFoundException("L'étape de projet demandée n'existe pas."));
+        verifierMentorAffecte(
+                pe.getProjet().getId(),
+                userConnecter
+        );
         pe.setStatutEtape(StatutEtapeEnum.A_REVOIR);
         pe.setCommentaireMentor(dto.getCommentaireMentor());
         pe.setDateValidation(null);
@@ -352,7 +361,7 @@ public class ProjetEtapeService {
         notificationService.notifierUtilisateur(saved.getProjet().getPorteur(), alerteDto);
     }
 
-
+/*
     @Transactional(readOnly = true)
     public LivrableEtapeDto consulterLivrableEnJson(int projetEtapeId) {
         ProjetEtape pe = projetEtapeRepository.findById(projetEtapeId)
@@ -368,6 +377,71 @@ public class ProjetEtapeService {
                 pe.getProjet().getPorteur().getPrenom() + " " + pe.getProjet().getPorteur().getNom(),
                 elements
         );
+    }
+
+ */
+
+    @Transactional(readOnly = true)
+    public LivrableEtapeDto consulterLivrableEnJson(
+            int projetEtapeId,
+            CustumUserDetail userConnecter
+    ) {
+        ProjetEtape pe = projetEtapeRepository.findById(projetEtapeId)
+                .orElseThrow(() ->
+                        new ResourceNotFoundException(
+                                "L'étape de projet demandée n'existe pas."
+                        )
+                );
+
+        verifierMentorAffecte(
+                pe.getProjet().getId(),
+                userConnecter
+        );
+
+        List<LivrableEtapeDto.QuestionReponseDto> elements =
+                pe.getReponse().stream()
+                        .map(r ->
+                                new LivrableEtapeDto.QuestionReponseDto(
+                                        r.getQuestion().getLibelle(),
+                                        r.getReponse()
+                                )
+                        )
+                        .toList();
+
+        return new LivrableEtapeDto(
+                pe.getProjet().getTitre(),
+                pe.getEtape().getType().toString(),
+                pe.getProjet().getPorteur().getPrenom()
+                        + " "
+                        + pe.getProjet().getPorteur().getNom(),
+                elements
+        );
+    }
+
+
+    private void verifierMentorAffecte(
+            int projetId,
+            CustumUserDetail userConnecter
+    ) {
+        if (userConnecter == null || userConnecter.getUser() == null) {
+            throw new NonAutoriseException(
+                    "Vous devez être connecté pour effectuer cette action."
+            );
+        }
+
+        int mentorId = userConnecter.getUser().getId();
+
+        mentorProjetRepository
+                .findByMentorIdAndProjetIdAndStatut(
+                        mentorId,
+                        projetId,
+                        StatutDemandeMentoratEnum.ACCEPTEE
+                )
+                .orElseThrow(() ->
+                        new NonAutoriseException(
+                                "Vous n'êtes pas un mentor accepté pour ce projet."
+                        )
+                );
     }
 
 

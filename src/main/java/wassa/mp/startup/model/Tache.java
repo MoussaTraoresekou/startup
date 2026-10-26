@@ -1,5 +1,5 @@
-package wassa.mp.startup.model;
 
+package wassa.mp.startup.model;
 
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
@@ -9,10 +9,11 @@ import wassa.mp.startup.Enumeration.StatutTache;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
-@Data @NoArgsConstructor
-@AllArgsConstructor
+
 @Entity
-@Table(name = "tache")
+@Data
+@NoArgsConstructor
+@AllArgsConstructor
 public class Tache {
 
     @Id
@@ -29,20 +30,14 @@ public class Tache {
     private LocalDateTime dateCreation;
 
     private LocalDate dateEcheance;
-    @Column(nullable = false)
-    private StatutTache statut;
 
-    // Projet auquel appartient la tâche
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
+    private StatutTache statut = StatutTache.A_FAIRE;
+
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "projet_id", nullable = false)
     private Projet projet;
-
-    // Porteur qui crée, attribue et vérifie la tâche
-    @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "porteur_id", nullable = false)
-    private Porteur porteur;
-
-    // Membre responsable de la réalisation
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "membre_responsable_id", nullable = false)
     private MembreProjet membreResponsable;
@@ -55,26 +50,15 @@ public class Tache {
     private String renduUrl;
 
     private LocalDateTime dateSoumission;
-
-    // Retour du porteur lors de la vérification
     @Column(columnDefinition = "TEXT")
     private String commentaireVerification;
 
     private LocalDateTime dateVerification;
-
 
     @PrePersist
     public void avantInsertion() {
         if (dateCreation == null) {
             dateCreation = LocalDateTime.now();
         }
-
-        if (statut == null) {
-            statut = StatutTache.A_FAIRE;
-        }
-
-
     }
-
 }
-

@@ -7,6 +7,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 import wassa.mp.startup.CustumUserDetail;
 import wassa.mp.startup.dto.*;
 import wassa.mp.startup.model.Candidature;
@@ -52,6 +53,8 @@ public class PorteurController {
     private OffresService offresService;
     @Autowired
     private CandidatureService candidatureService;
+    @Autowired
+    private TacheService tacheService;
 
     @PostMapping("/register")
     public ResponseEntity<PorteurResponseDto> createPorteur(@RequestBody PorteurRequestDto porteurRequestDto) {
@@ -59,12 +62,43 @@ public class PorteurController {
         return ResponseEntity.status(HttpStatus.CREATED).body(porteurService.registerPorteur(porteurRequestDto));
     }
 
-    @PostMapping("/projet")
-    public ResponseEntity<ProjetResponseDto> CreerProjet(@RequestBody ProjetRequestDto p, @AuthenticationPrincipal CustumUserDetail userConnecter) {
-        System.out.println("moussa");
-        System.out.println(userConnecter.getUser().getEmail());
-        Projet projet = projetService.creaProjet(p, userConnecter);
-        return ResponseEntity.status(HttpStatus.CREATED).body(new ProjetResponseDto(projet.getId(), projet.getTitre(), projet.getDescription(), projet.getPith_url(), projet.getQuota_propose(), projet.getSecteurActivite().getNom(), userConnecter.getUser().getNomComplet(), projet.getDate_creation()));
+    @PostMapping(
+            value = "/projet",
+            consumes = org.springframework.http.MediaType.MULTIPART_FORM_DATA_VALUE
+    )
+    public ResponseEntity<ProjetResponseDto> CreerProjet(
+            @RequestParam("titre") String titre,
+            @RequestParam("description") String description,
+            @RequestParam("quota_propose") String quotaPropose,
+            @RequestParam("secteur_id") int secteurId,
+            @RequestParam(value = "fichierPitch", required = false)
+            MultipartFile fichierPitch,
+            @AuthenticationPrincipal CustumUserDetail userConnecter) {
+
+        ProjetRequestDto dto = new ProjetRequestDto();
+        dto.setTitre(titre);
+        dto.setDescription(description);
+        dto.setQuota_propose(quotaPropose);
+        dto.setSecteur_id(secteurId);
+
+        Projet projet = projetService.creaProjet(
+                dto,
+                fichierPitch,
+                userConnecter
+        );
+
+        ProjetResponseDto response = new ProjetResponseDto(
+                projet.getId(),
+                projet.getTitre(),
+                projet.getDescription(),
+                projet.getPith_url(),
+                projet.getQuota_propose(),
+                projet.getSecteurActivite().getNom(),
+                userConnecter.getUser().getNomComplet(),
+                projet.getDate_creation()
+        );
+
+        return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
 
     @GetMapping("/projets/{id}")
@@ -77,9 +111,32 @@ public class PorteurController {
         return projetService.getAllProjets(userConnecter);
     }
 
-    @PutMapping("/projets/{id}")
-    public ProjetResponseDto modifierProjet(@PathVariable int id, @RequestBody ProjetRequestDto projetRequestDto, @AuthenticationPrincipal CustumUserDetail userConnecter) {
-        return projetService.modifierProjet(id, userConnecter, projetRequestDto);
+    @PutMapping(
+            value = "/projets/{id}",
+            consumes = org.springframework.http.MediaType.MULTIPART_FORM_DATA_VALUE
+    )
+    public ProjetResponseDto modifierProjet(
+            @PathVariable int id,
+            @RequestParam("titre") String titre,
+            @RequestParam("description") String description,
+            @RequestParam("quota_propose") String quotaPropose,
+            @RequestParam("secteur_id") int secteurId,
+            @RequestParam(value = "fichierPitch", required = false)
+            MultipartFile fichierPitch,
+            @AuthenticationPrincipal CustumUserDetail userConnecter) {
+
+        ProjetRequestDto dto = new ProjetRequestDto();
+        dto.setTitre(titre);
+        dto.setDescription(description);
+        dto.setQuota_propose(quotaPropose);
+        dto.setSecteur_id(secteurId);
+
+        return projetService.modifierProjet(
+                id,
+                userConnecter,
+                dto,
+                fichierPitch
+        );
     }
 
     @GetMapping("/projets/{id}/etapes")
@@ -190,10 +247,10 @@ public class PorteurController {
     }
 
     @GetMapping("/projets/{id}/equipe-complete")
-    public ResponseEntity<List<MembreEquipeDto>> getEquipeProjetComplete(
+    public ResponseEntity<List<MembreProjetDto>> getEquipeProjetComplete(
             @PathVariable int id,
             @AuthenticationPrincipal CustumUserDetail userConnecter) {
-        return ResponseEntity.ok(projetService.calculerEquipeProjetComplete(id));
+        return ResponseEntity.ok(projetService.calculerEquipeProjetComplete(id,userConnecter));
     }
     @PutMapping("/candidatures/{id}/accepter")
     public ResponseEntity<Map<String, String>> accepterCandidature(@PathVariable int id){
@@ -222,6 +279,54 @@ public class PorteurController {
         List<OffresResponseDto> offres = offresService.obtenirToutesLesOffresOuvertes(userConnecter);
 
         return ResponseEntity.ok(offres);
+    }
+    // ==================== GESTION DES TÂCHES ====================
+
+    @PostMapping("/projets/{projetId}/taches")
+    public ResponseEntity<TacheResponseDto> creerTache(
+            @PathVariable int projetId,
+            @Valid @RequestBody TacheCreationDto dto,
+            @AuthenticationPrincipal CustumUserDetail userConnecter) {
+
+        TacheResponseDto tache =
+                tacheService.creerTache(projetId, dto, userConnecter);
+
+        return ResponseEntity.status(HttpStatus.CREATED).body(tache);
+    }
+
+    @GetMapping("/projets/{projetId}/taches")
+    public ResponseEntity<List<TacheResponseDto>> obtenirTachesProjet(
+            @PathVariable int projetId,
+            @AuthenticationPrincipal CustumUserDetail userConnecter) {
+
+        return ResponseEntity.ok(
+                tacheService.obtenirTachesProjet(projetId, userConnecter)
+        );
+    }
+
+    @PutMapping("/taches/{tacheId}/verifier")
+    public ResponseEntity<TacheResponseDto> verifierRendu(
+            @PathVariable int tacheId,
+            @RequestBody TacheVerificationDto dto,
+            @AuthenticationPrincipal CustumUserDetail userConnecter) {
+
+        return ResponseEntity.ok(
+                tacheService.verifierRendu(tacheId, dto, userConnecter)
+        );
+    }
+    @PutMapping("/taches/{tacheId}/soumettre")
+    public ResponseEntity<TacheResponseDto> soumettreRendu(
+            @PathVariable int tacheId,
+            @RequestBody TacheRenduDto dto,
+            @AuthenticationPrincipal CustumUserDetail userConnecter) {
+
+        return ResponseEntity.ok(
+                tacheService.soumettreRendu(
+                        tacheId,
+                        dto,
+                        userConnecter
+                )
+        );
     }
 
 

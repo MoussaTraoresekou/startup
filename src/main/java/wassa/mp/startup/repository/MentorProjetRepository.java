@@ -1,3 +1,4 @@
+
 package wassa.mp.startup.repository;
 
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -7,14 +8,34 @@ import wassa.mp.startup.model.MentorProjet;
 import java.util.List;
 import java.util.Optional;
 
-public interface MentorProjetRepository extends JpaRepository<MentorProjet,Integer> {
-    Optional<MentorProjet> findByMentorIdAndProjetId(int mentorId, int projetId);
+public interface MentorProjetRepository
+        extends JpaRepository<MentorProjet, Integer> {
+
+    Optional<MentorProjet> findByMentorIdAndProjetId(
+            int mentorId,
+            int projetId
+    );
+
     List<MentorProjet> findByMentorId(int mentorId);
 
+    List<MentorProjet> findByMentorIdAndStatut(
+            int mentorId,
+            StatutDemandeMentoratEnum statut
+    );
 
-    List<MentorProjet> findByMentorIdAndStatut(int mentorId, StatutDemandeMentoratEnum statutDemandeMentoratEnum);
+    Optional<MentorProjet> findByProjetIdAndStatut(
+            int projetId,
+            StatutDemandeMentoratEnum statut
+    );
 
-    Optional<Object> findByProjetIdAndStatut(int id, StatutDemandeMentoratEnum statutDemandeMentoratEnum);
+    List<MentorProjet> findAllByProjetIdAndStatut(
+            int projetId,
+            StatutDemandeMentoratEnum statut
+    );
 
-    List<Object> findAllByProjetIdAndStatut(int projetId, StatutDemandeMentoratEnum statutDemandeMentoratEnum);
+    Optional<MentorProjet> findByMentorIdAndProjetIdAndStatut(
+            int mentorId,
+            int projetId,
+            StatutDemandeMentoratEnum statut
+    );
 }

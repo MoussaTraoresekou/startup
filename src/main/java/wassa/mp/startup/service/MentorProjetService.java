@@ -1,14 +1,18 @@
+
 package wassa.mp.startup.service;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
 import wassa.mp.startup.CustumUserDetail;
+import wassa.mp.startup.Enumeration.RoleDansProjet;
+import wassa.mp.startup.Enumeration.StatutMembre;
+import wassa.mp.startup.Enumeration.StatutDemandeMentoratEnum;
 import wassa.mp.startup.dto.*;
 import wassa.mp.startup.exception.OperationInterditeException;
 import wassa.mp.startup.exception.ResourceNotFoundException;
 import wassa.mp.startup.model.*;
-import wassa.mp.startup.Enumeration.StatutDemandeMentoratEnum;
 import wassa.mp.startup.repository.*;
 
 import java.time.LocalDateTime;
@@ -28,275 +32,492 @@ public class MentorProjetService {
     private MentorRepository mentorRepository;
 
     @Autowired
-    private NotificationService notificationService; // Centralise l'enregistrement et le SSE
+    private NotificationService notificationService;
 
-    @Transactional
-    public void mentorProposeMentorat(DemandeMentoratDto dto, CustumUserDetail userConnecter) {
+    @Autowired
+    private MembreProjetRepository membreProjetRepository;
 
-        // 1. Récupération du profil Mentor de l'utilisateur connecté (grâce à l'héritage)
-        Mentor mentor = mentorRepository.findById(userConnecter.getUser().getId()).orElseThrow(
-                () -> new ResourceNotFoundException("Profil mentor introuvable pour cet utilisateur.")
-        );
+    private MentorProjet obtenirOuReutiliserRelation(
+            Mentor mentor,
+            Projet projet,
+            String description) {
 
-        // 2. Récupération du projet ciblé
-        Projet projet = projetRepository.findById(dto.getProjetId()).orElseThrow(
-                () -> new ResourceNotFoundException("Le projet ciblé n'existe pas.")
-        );
+        Optional<MentorProjet> relationExistante =
+                mentorProjetRepository.findByMentorIdAndProjetId(
+                        mentor.getId(),
+                        projet.getId()
+                );
 
-        // 3. Sécurité : On évite qu'un même mentor envoie plusieurs demandes en attente sur le même projet
-        Optional<MentorProjet> relationExistante = mentorProjetRepository.findByMentorIdAndProjetId(mentor.getId(), projet.getId());
         if (relationExistante.isPresent()) {
-            throw new OperationInterditeException("Une demande d'accompagnement est déjà en cours ou a déjà été traitée pour ce projet.");
+            MentorProjet relation = relationExistante.get();
+
+            if (relation.getStatut()
+                    == StatutDemandeMentoratEnum.EN_ATTENTE) {
+                throw new OperationInterditeException(
+                        "Une demande de mentorat est déjà en attente."
+                );
+            }
+
+            if (relation.getStatut()
+                    == StatutDemandeMentoratEnum.ACCEPTEE) {
+                throw new OperationInterditeException(
+                        "Ce mentor accompagne déjà ce projet."
+                );
+            }
+
+            if (relation.getStatut()
+                    == StatutDemandeMentoratEnum.REFUSEE) {
+                relation.setDescription(description);
+                relation.setStatut(
+                        StatutDemandeMentoratEnum.EN_ATTENTE
+                );
+                relation.setDateDemande(LocalDateTime.now());
+                relation.setDateTraitement(null);
+
+                return mentorProjetRepository.save(relation);
+            }
+
+            throw new OperationInterditeException(
+                    "Impossible de réutiliser cette relation."
+            );
         }
 
+        MentorProjet relation = new MentorProjet();
+        relation.setMentor(mentor);
+        relation.setProjet(projet);
+        relation.setDescription(description);
+        relation.setStatut(StatutDemandeMentoratEnum.EN_ATTENTE);
+        relation.setDateDemande(LocalDateTime.now());
 
+        return mentorProjetRepository.save(relation);
+    }
 
-        // 4. Enregistrement du contrat d'association en base de données
-        MentorProjet mentorProjet = new MentorProjet();
-        mentorProjet.setMentor(mentor);
-        mentorProjet.setProjet(projet);
-        mentorProjet.setDescription(dto.getDescription());
-        mentorProjet.setStatut(StatutDemandeMentoratEnum.EN_ATTENTE);
-        mentorProjet.setDateDemande(LocalDateTime.now());
+    @Transactional
+    public void mentorProposeMentorat(
+            DemandeMentoratDto dto,
+            CustumUserDetail userConnecter) {
 
-        MentorProjet savedRelation = mentorProjetRepository.save(mentorProjet);
+        Mentor mentor = mentorRepository.findById(
+                userConnecter.getUser().getId()
+        ).orElseThrow(() ->
+                new ResourceNotFoundException(
+                        "Profil mentor introuvable pour cet utilisateur."
+                )
+        );
 
-        // 5. Préparation du DTO d'alerte flexible pour le temps réel
-        String messageNotification = "Le mentor " + userConnecter.getUser().getPrenom() + " " + userConnecter.getUser().getNom()
-                + " propose d'accompagner votre projet : " + projet.getTitre();
+        Projet projet = projetRepository.findById(dto.getProjetId())
+                .orElseThrow(() ->
+                        new ResourceNotFoundException(
+                                "Le projet ciblé n'existe pas."
+                        )
+                );
+
+        MentorProjet relation = obtenirOuReutiliserRelation(
+                mentor,
+                projet,
+                dto.getDescription()
+        );
+
+        String message = "Le mentor "
+                + userConnecter.getUser().getPrenom() + " "
+                + userConnecter.getUser().getNom()
+                + " propose d'accompagner votre projet : "
+                + projet.getTitre();
 
         AlerteMentoratDto alerte = new AlerteMentoratDto(
-                savedRelation.getId(), // ID de l'association pour les futurs boutons Accepter/Refuser
-                messageNotification,
-                userConnecter.getUser().getPrenom() + " " + userConnecter.getUser().getNom(),
-                "MENTOR", // L'auteur de l'action est un mentor
+                relation.getId(),
+                message,
+                userConnecter.getUser().getPrenom() + " "
+                        + userConnecter.getUser().getNom(),
+                "MENTOR",
                 projet.getTitre(),
                 LocalDateTime.now()
         );
 
-        // 6. Déclenchement automatique de la persistance de l'alerte et du push SSE
-        // Le destinataire est le Porteur du projet (qui est une sous-classe ou lié à User)
-        User destinataire = projet.getPorteur();
-
-        notificationService.notifierUtilisateur(destinataire, alerte);
+        notificationService.notifierUtilisateur(
+                projet.getPorteur(),
+                alerte
+        );
     }
-    /**
-     * Un Porteur connecté sollicite/invite un Mentor spécifique à rejoindre son projet
-     */
+
     @Transactional
-    public void porteurSolliciteMentor(InvitationMentorDto dto, CustumUserDetail userConnecter) {
+    public void porteurSolliciteMentor(
+            InvitationMentorDto dto,
+            CustumUserDetail userConnecter) {
 
-        // 1. Récupération du projet ciblé
-        Projet projet = projetRepository.findById(dto.getProjetId()).orElseThrow(
-                () -> new ResourceNotFoundException("Le projet spécifié n'existe pas.")
-        );
+        Projet projet = projetRepository.findById(dto.getProjetId())
+                .orElseThrow(() ->
+                        new ResourceNotFoundException(
+                                "Le projet spécifié n'existe pas."
+                        )
+                );
 
-        // 2. SÉCURITÉ : On vérifie que le projet appartient bien au Porteur actuellement connecté
-        if (projet.getPorteur().getId() != userConnecter.getUser().getId()) {
-            throw new IllegalArgumentException("Vous n'êtes pas autorisé à lancer une invitation pour ce projet.");
+        if (projet.getPorteur().getId()
+                != userConnecter.getUser().getId()) {
+            throw new OperationInterditeException(
+                    "Vous n'êtes pas autorisé à inviter un mentor pour ce projet."
+            );
         }
 
-        // 3. Récupération du profil du Mentor invité
-        Mentor mentor = mentorRepository.findById(dto.getMentorId()).orElseThrow(
-                () -> new ResourceNotFoundException("Le mentor sélectionné n'existe pas.")
+        Mentor mentor = mentorRepository.findById(dto.getMentorId())
+                .orElseThrow(() ->
+                        new ResourceNotFoundException(
+                                "Le mentor sélectionné n'existe pas."
+                        )
+                );
+
+        MentorProjet relation = obtenirOuReutiliserRelation(
+                mentor,
+                projet,
+                dto.getMessageInvitation()
         );
 
-        /* 4. SÉCURITÉ : Éviter les doublons (si une relation ou demande existe déjà)
-        Optional<MentorProjet> relationExistante = mentorProjetRepository.findByMentorIdAndProjetId(mentor.getId(), projet.getId());
-        if (relationExistante.isPresent()) {
-            throw new OperationInterditeException("Une relation ou une demande d'accompagnement est déjà en cours avec ce mentor.");
-        }
-
-         */
-
-        // 5. Enregistrement de la demande d'association en base de données (Statut EN_ATTENTE)
-        MentorProjet mentorProjet = new MentorProjet();
-        mentorProjet.setMentor(mentor);
-        mentorProjet.setProjet(projet);
-        mentorProjet.setDescription(dto.getMessageInvitation());
-        mentorProjet.setStatut(StatutDemandeMentoratEnum.EN_ATTENTE);
-        mentorProjet.setDateDemande(LocalDateTime.now());
-
-        MentorProjet savedRelation = mentorProjetRepository.save(mentorProjet);
-
-        // 6. Préparation de l'objet d'alerte flexible pour le temps réel (SSE)
-        String messageAlerte = "Le projet " + projet.getTitre() + " mené par " + userConnecter.getUser().getPrenom()
+        String message = "Le projet " + projet.getTitre()
+                + " mené par "
+                + userConnecter.getUser().getPrenom()
                 + " vous sollicite pour devenir son mentor.";
 
         AlerteMentoratDto alerte = new AlerteMentoratDto(
-                savedRelation.getId(), // ID de la ligne pour que le mentor puisse cliquer sur accepter/refuser
-                messageAlerte,
-                userConnecter.getUser().getPrenom() + " " + userConnecter.getUser().getNom(),
-                "PORTEUR", // L'auteur de l'invitation est un porteur de projet
+                relation.getId(),
+                message,
+                userConnecter.getUser().getPrenom() + " "
+                        + userConnecter.getUser().getNom(),
+                "PORTEUR",
                 projet.getTitre(),
                 LocalDateTime.now()
         );
 
-        // 7. ENVOI EN TEMPS RÉEL (SSE)
-        // La classe Mentor héritant de User, on extrait l'identifiant pour cibler son écran
-        User destinataireMentor = mentor;
-
-        notificationService.notifierUtilisateur(destinataireMentor, alerte);
-    }
-    /**
-     * Accepter une demande de mentorat existante (Idempotent via PUT)
-     */
-    @Transactional
-    public void accepterDemandeMentorat(int mentorProjetId, CustumUserDetail userConnecter) {
-        // 1. Récupération de la demande
-        MentorProjet mentorProjet = mentorProjetRepository.findById(mentorProjetId).orElseThrow(
-                () -> new ResourceNotFoundException("Cette demande de mentorat n'existe pas.")
+        notificationService.notifierUtilisateur(
+                mentor,
+                alerte
         );
-        /*
-        // 2. Sécurité : Vérifier que la demande est bien en attente
-        if (mentorProjet.getStatut() != StatutDemandeMentoratEnum.EN_ATTENTE) {
-            throw new OperationInterditeException("Cette demande a déjà été traitée (Statut actuel : " + mentorProjet.getStatut() + ").");
+    }
+
+    @Transactional
+    public void accepterDemandeMentorat(
+            int mentorProjetId,
+            CustumUserDetail userConnecter) {
+
+        MentorProjet mentorProjet =
+                mentorProjetRepository.findById(mentorProjetId)
+                        .orElseThrow(() ->
+                                new ResourceNotFoundException(
+                                        "Cette demande de mentorat n'existe pas."
+                                )
+                        );
+
+        if (mentorProjet.getStatut()
+                != StatutDemandeMentoratEnum.EN_ATTENTE) {
+            throw new OperationInterditeException(
+                    "Cette demande a déjà été traitée. Statut actuel : "
+                            + mentorProjet.getStatut()
+            );
         }
 
-         */
+        Projet projet = mentorProjet.getProjet();
+        Mentor mentor = mentorProjet.getMentor();
 
         int idConnecter = userConnecter.getUser().getId();
-        User destinataireAlerte = null;
-        String messageConfirmation = "";
+        int idPorteur = projet.getPorteur().getId();
+        int idMentor = mentor.getId();
 
-        // 3. Détermination de qui accepte et qui doit être notifié en retour
-        if (mentorProjet.getProjet().getPorteur().getId() == idConnecter) {
-            // CAS 1 : C'est le Porteur qui accepte le Mentor (La demande venait du Mentor)
-            destinataireAlerte = mentorProjet.getMentor(); // Le mentor héritant de User
-            messageConfirmation = "Félicitations ! Le projet " + mentorProjet.getProjet().getTitre()
-                    + " a accepté votre proposition d'accompagnement.";
+        User destinataireAlerte;
+        String messageConfirmation;
+        String roleAuteur;
 
-        } else if (mentorProjet.getMentor().getId() == idConnecter) {
-            // CAS 2 : C'est le Mentor qui accepte le Projet (La demande venait du Porteur)
-            destinataireAlerte = mentorProjet.getProjet().getPorteur();
-            messageConfirmation = "Bonne nouvelle ! Le mentor " + userConnecter.getUser().getPrenom()
-                    + " a accepté votre invitation pour le projet : " + mentorProjet.getProjet().getTitre();
+        if (idPorteur == idConnecter) {
+            destinataireAlerte = mentor;
+            messageConfirmation =
+                    "Félicitations ! Le projet " + projet.getTitre()
+                            + " a accepté votre proposition d'accompagnement.";
+            roleAuteur = "PORTEUR";
+
+        } else if (idMentor == idConnecter) {
+            destinataireAlerte = projet.getPorteur();
+            messageConfirmation =
+                    "Bonne nouvelle ! Le mentor "
+                            + userConnecter.getUser().getPrenom()
+                            + " a accepté votre invitation pour le projet : "
+                            + projet.getTitre();
+            roleAuteur = "MENTOR";
 
         } else {
-            // Sécurité : Un utilisateur tiers essaie de forcer l'acceptation
-            throw new OperationInterditeException("Vous n'êtes pas autorisé à traiter cette demande de mentorat.");
+            throw new OperationInterditeException(
+                    "Vous n'êtes pas autorisé à traiter cette demande."
+            );
         }
 
-        // 4. Mise à jour de la relation en base de données
-        mentorProjet.setStatut(StatutDemandeMentoratEnum.ACCEPTEE);
+        Optional<MembreProjet> membreExistant =
+                membreProjetRepository.findByProjet_IdAndUser_Id(
+                        projet.getId(),
+                        mentor.getId()
+                );
+
+        if (membreExistant.isPresent()) {
+            MembreProjet membre = membreExistant.get();
+            membre.setRoleProjet(RoleDansProjet.MENTOR);
+            membre.setStatut(StatutMembre.ACTIF);
+            membreProjetRepository.save(membre);
+
+        } else {
+            MembreProjet membre = new MembreProjet();
+            membre.setProjet(projet);
+            membre.setUser(mentor);
+            membre.setRoleProjet(RoleDansProjet.MENTOR);
+            membre.setStatut(StatutMembre.ACTIF);
+            membreProjetRepository.save(membre);
+        }
+
+        mentorProjet.setStatut(
+                StatutDemandeMentoratEnum.ACCEPTEE
+        );
         mentorProjet.setDateTraitement(LocalDateTime.now());
         mentorProjetRepository.save(mentorProjet);
 
-        // 5. Envoi de la notification de confirmation au demandeur initial
         AlerteMentoratDto alerte = new AlerteMentoratDto(
                 mentorProjet.getId(),
                 messageConfirmation,
-                userConnecter.getUser().getPrenom() + " " + userConnecter.getUser().getNom(),
-                mentorProjet.getProjet().getPorteur().getId() == idConnecter ? "PORTEUR" : "MENTOR", // Qui a validé
-                mentorProjet.getProjet().getTitre(),
+                userConnecter.getUser().getPrenom() + " "
+                        + userConnecter.getUser().getNom(),
+                roleAuteur,
+                projet.getTitre(),
                 LocalDateTime.now()
         );
 
-        notificationService.notifierUtilisateur(destinataireAlerte, alerte);
-    }
-    /**
-     * Refuser une demande de mentorat existante (PUT)
-     */
-    @Transactional
-    public void refuserDemandeMentorat(int mentorProjetId, CustumUserDetail userConnecter) {
-        // 1. Récupération de la demande
-        MentorProjet mentorProjet = mentorProjetRepository.findById(mentorProjetId).orElseThrow(
-                () -> new ResourceNotFoundException("Cette demande de mentorat n'existe pas.")
+        notificationService.notifierUtilisateur(
+                destinataireAlerte,
+                alerte
         );
-/*
-        // 2. Sécurité : Vérifier que la demande est bien en attente
-        if (mentorProjet.getStatut() != StatutDemandeMentoratEnum.EN_ATTENTE) {
-            throw new OperationInterditeException("Cette demande a déjà été traitée (Statut actuel : " + mentorProjet.getStatut() + ").");
+    }
+
+    @Transactional
+    public void refuserDemandeMentorat(
+            int mentorProjetId,
+            CustumUserDetail userConnecter) {
+
+        MentorProjet mentorProjet =
+                mentorProjetRepository.findById(mentorProjetId)
+                        .orElseThrow(() ->
+                                new ResourceNotFoundException(
+                                        "Cette demande de mentorat n'existe pas."
+                                )
+                        );
+
+        if (mentorProjet.getStatut()
+                != StatutDemandeMentoratEnum.EN_ATTENTE) {
+            throw new OperationInterditeException(
+                    "Cette demande a déjà été traitée. Statut actuel : "
+                            + mentorProjet.getStatut()
+            );
         }
 
- */
+        Projet projet = mentorProjet.getProjet();
+        Mentor mentor = mentorProjet.getMentor();
 
         int idConnecter = userConnecter.getUser().getId();
-        User destinataireAlerte = null;
-        String messageRefus = "";
 
-        // 3. Détermination de qui refuse et qui doit être notifié en retour
-        if (mentorProjet.getProjet().getPorteur().getId() == idConnecter) {
-            // CAS 1 : Le Porteur refuse la proposition du Mentor
-            destinataireAlerte = mentorProjet.getMentor();
-            messageRefus = "Le projet " + mentorProjet.getProjet().getTitre() + " a décliné votre proposition d'accompagnement.";
+        User destinataireAlerte;
+        String messageRefus;
+        String roleAuteur;
 
-        } else if (mentorProjet.getMentor().getId() == idConnecter) {
-            // CAS 2 : Le Mentor refuse l'invitation du Porteur
-            destinataireAlerte = mentorProjet.getProjet().getPorteur();
-            messageRefus = "Le mentor " + userConnecter.getUser().getPrenom() + " a décliné votre invitation pour le projet " + mentorProjet.getProjet().getTitre() + ".";
+        if (projet.getPorteur().getId() == idConnecter) {
+            destinataireAlerte = mentor;
+            messageRefus = "Le projet " + projet.getTitre()
+                    + " a décliné votre proposition d'accompagnement.";
+            roleAuteur = "PORTEUR";
+
+        } else if (mentor.getId() == idConnecter) {
+            destinataireAlerte = projet.getPorteur();
+            messageRefus = "Le mentor "
+                    + userConnecter.getUser().getPrenom()
+                    + " a décliné votre invitation pour le projet "
+                    + projet.getTitre() + ".";
+            roleAuteur = "MENTOR";
 
         } else {
-            throw new OperationInterditeException("Vous n'êtes pas autorisé à traiter cette demande.");
+            throw new OperationInterditeException(
+                    "Vous n'êtes pas autorisé à traiter cette demande."
+            );
         }
 
-        // 4. Mise à jour en base de données
-        mentorProjet.setStatut(StatutDemandeMentoratEnum.REFUSEE);
+        mentorProjet.setStatut(
+                StatutDemandeMentoratEnum.REFUSEE
+        );
         mentorProjet.setDateTraitement(LocalDateTime.now());
         mentorProjetRepository.save(mentorProjet);
 
-        // 5. Envoi de l'alerte de refus via le service de notification (Base + SSE)
         AlerteMentoratDto alerte = new AlerteMentoratDto(
                 mentorProjet.getId(),
                 messageRefus,
-                userConnecter.getUser().getPrenom() + " " + userConnecter.getUser().getNom(),
-                mentorProjet.getProjet().getPorteur().getId() == idConnecter ? "PORTEUR" : "MENTOR",
-                mentorProjet.getProjet().getTitre(),
+                userConnecter.getUser().getPrenom() + " "
+                        + userConnecter.getUser().getNom(),
+                roleAuteur,
+                projet.getTitre(),
                 LocalDateTime.now()
         );
 
-        notificationService.notifierUtilisateur(destinataireAlerte, alerte);
+        notificationService.notifierUtilisateur(
+                destinataireAlerte,
+                alerte
+        );
     }
+
     @Transactional(readOnly = true)
-    public List<MentorDemandeResponseDto> obtenirDemandesPourMentor(int mentorId) {
-        List<MentorProjet> demandes = mentorProjetRepository.findByMentorId(mentorId);
-        return demandes.stream().map(mp -> new MentorDemandeResponseDto(
-                mp.getId(),
-                mp.getProjet().getId(), // ID du projet transmis pour alimenter le bouton "Consulter" du Frontend Angular 🎯
-                mp.getProjet().getTitre(),
-                mp.getProjet().getPorteur().getPrenom() + " " + mp.getProjet().getPorteur().getNom(),
-                mp.getProjet().getSecteurActivite().getNom(), // Remplacez par mp.getProjet().getSecteur().getSecteur() si c'est une entité jointe
-                mp.getDescription(),
-                mp.getDateDemande(),
-                mp.getStatut().toString()
-        )).toList();
+    public List<MentorDemandeResponseDto> obtenirDemandesPourMentor(
+            int mentorId) {
+
+        List<MentorProjet> demandes =
+                mentorProjetRepository.findByMentorId(mentorId);
+
+        return demandes.stream()
+                .map(mp -> new MentorDemandeResponseDto(
+                        mp.getId(),
+                        mp.getProjet().getId(),
+                        mp.getProjet().getTitre(),
+                        mp.getProjet().getPorteur().getPrenom() + " "
+                                + mp.getProjet().getPorteur().getNom(),
+                        mp.getProjet().getSecteurActivite().getNom(),
+                        mp.getDescription(),
+                        mp.getDateDemande(),
+                        mp.getStatut().toString()
+                ))
+                .toList();
     }
+/*
     @Transactional(readOnly = true)
     public ProjetResponseDto obtenirDetailsFicheProjet(int projetId) {
-        // Récupération de la startup ciblée
-        Projet projet = projetRepository.findById(projetId).orElseThrow(
-                () -> new ResourceNotFoundException("Le projet demandé n'existe pas.")
-        );
 
-        // Construction du DTO technique complet incluant les liens cloud Supabase
+        Projet projet = projetRepository.findById(projetId)
+                .orElseThrow(() ->
+                        new ResourceNotFoundException(
+                                "Le projet demandé n'existe pas."
+                        )
+                );
+
         return new ProjetResponseDto(
                 projet.getId(),
                 projet.getTitre(),
                 projet.getDescription(),
                 projet.getPith_url(),
                 projet.getQuota_propose(),
-                projet.getSecteurActivite().getNom(), // Remplacez par le mapping adéquat selon votre modèle d'activité
+                projet.getSecteurActivite().getNom(),
                 projet.getPorteur().getNomComplet(),
                 projet.getDate_creation()
         );
     }
-    @Transactional(readOnly = true)
-    public List<ProjetResponseDto> obtenirStartupsAssigneesAuMentor(int mentorId) {
-        // Extraction des relations acceptées depuis la table pivot mentor_projet
-        List<MentorProjet> liaisons = mentorProjetRepository.findByMentorIdAndStatut(mentorId, StatutDemandeMentoratEnum.ACCEPTEE);
 
-        // Transformation des entités réelles vers votre DTO ProjetResponseDto existant
-        return liaisons.stream().map(mp -> new ProjetResponseDto(
-                mp.getProjet().getId(),
-                mp.getProjet().getTitre(),
-                mp.getProjet().getDescription(),
-                mp.getProjet().getPith_url(),
-                mp.getProjet().getQuota_propose(),
-                mp.getProjet().getSecteurActivite().getNom(),
-                mp.getProjet().getPorteur().getNomComplet(),
-                mp.getProjet().getDate_creation()
-        )).toList();
+
+@Transactional(readOnly = true)
+public ProjetResponseDto obtenirDetailsFicheProjet(
+        int projetId,
+        CustumUserDetail userConnecter) {
+
+    Projet projet = projetRepository.findById(projetId)
+            .orElseThrow(() ->
+                    new ResourceNotFoundException(
+                            "Le projet demandé n'existe pas."
+                    )
+            );
+
+    verifierMentorAccepte(projetId, userConnecter);
+
+    return new ProjetResponseDto(
+            projet.getId(),
+            projet.getTitre(),
+            projet.getDescription(),
+            projet.getPith_url(),
+            projet.getQuota_propose(),
+            projet.getSecteurActivite().getNom(),
+            projet.getPorteur().getNomComplet(),
+            projet.getDate_creation()
+    );
+}
+
+
+ */
+@Transactional(readOnly = true)
+    public ProjetResponseDto obtenirDetailsFicheProjet(
+            int projetId,
+            CustumUserDetail userConnecter) {
+
+        // 1. Vérifier que le projet existe
+        Projet projet = projetRepository.findById(projetId)
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "Projet introuvable avec l'identifiant : " + projetId
+                ));
+
+        // 2. Vérifier que l'utilisateur est connecté
+        if (userConnecter == null || userConnecter.getUser() == null) {
+            throw new OperationInterditeException(
+                    "Vous devez être connecté pour consulter ce projet."
+            );
+        }
+
+        int mentorId = userConnecter.getUser().getId();
+
+        // 3. Vérifier qu'une invitation existe pour ce mentor et ce projet
+        mentorProjetRepository
+                .findByMentorIdAndProjetId(mentorId, projetId)
+                .orElseThrow(() -> new OperationInterditeException(
+                        "Vous devez avoir reçu une invitation pour consulter ce projet."
+                ));
+
+        // 4. Retourner les informations du projet
+        return new ProjetResponseDto(
+                projet.getId(),
+                projet.getTitre(),
+                projet.getDescription(),
+                projet.getPith_url(),
+                projet.getQuota_propose(),
+                projet.getSecteurActivite().getNom(),
+                projet.getPorteur().getNomComplet(),
+                projet.getDate_creation()
+        );
     }
 
+    @Transactional(readOnly = true)
+    public List<ProjetResponseDto> obtenirStartupsAssigneesAuMentor(
+            int mentorId) {
 
+        List<MentorProjet> liaisons =
+                mentorProjetRepository.findByMentorIdAndStatut(
+                        mentorId,
+                        StatutDemandeMentoratEnum.ACCEPTEE
+                );
+
+        return liaisons.stream()
+                .map(mp -> new ProjetResponseDto(
+                        mp.getProjet().getId(),
+                        mp.getProjet().getTitre(),
+                        mp.getProjet().getDescription(),
+                        mp.getProjet().getPith_url(),
+                        mp.getProjet().getQuota_propose(),
+                        mp.getProjet().getSecteurActivite().getNom(),
+                        mp.getProjet().getPorteur().getNomComplet(),
+                        mp.getProjet().getDate_creation()
+                ))
+                .toList();
+    }
+    private void verifierMentorAccepte(
+            int projetId,
+            CustumUserDetail userConnecter) {
+
+        if (userConnecter == null || userConnecter.getUser() == null) {
+            throw new OperationInterditeException(
+                    "Vous devez être connecté pour consulter ce projet."
+            );
+        }
+
+        mentorProjetRepository
+                .findByMentorIdAndProjetIdAndStatut(
+                        userConnecter.getUser().getId(),
+                        projetId,
+                        StatutDemandeMentoratEnum.ACCEPTEE
+                )
+                .orElseThrow(() ->
+                        new OperationInterditeException(
+                                "Vous devez être un mentor accepté pour consulter ce projet."
+                        )
+                );
+    }
 }

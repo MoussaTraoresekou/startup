@@ -25,6 +25,14 @@ public class Projet {
     private List<ProjetEtape>projetEtapes;
     @ManyToOne
     private SecteurActivite secteurActivite;
+    @OneToMany(mappedBy = "projet")
+    private List<MembreProjet>membreProjets;
+    @OneToMany(mappedBy = "projet")
+    private List<Tache>taches;
+    private String pith_thumbnail_url;
+    @Column(length = 10)
+    private String pith_type;
+
 
 
 }

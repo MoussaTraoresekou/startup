@@ -70,9 +70,8 @@ public class InvestisseurController {
         return ResponseEntity.ok(profilService.passer(authentication.getName()));
     }
     @GetMapping("/projet/{projetId}")
-    public ResponseEntity<ProjetResponseDto> obtenirDetailsProjetPourMentor(
-            @PathVariable int projetId) {
-        ProjetResponseDto projetDetail = mentorProjetService.obtenirDetailsFicheProjet(projetId);
+    public ResponseEntity<ProjetResponseDto> obtenirDetailsProjetPourMentor(@PathVariable int projetId,@AuthenticationPrincipal CustumUserDetail userConnecter) {
+        ProjetResponseDto projetDetail = mentorProjetService.obtenirDetailsFicheProjet(projetId,userConnecter);
         return ResponseEntity.ok(projetDetail);
     }
     @GetMapping("/flux-projets")

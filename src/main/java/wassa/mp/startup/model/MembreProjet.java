@@ -1,3 +1,4 @@
+
 package wassa.mp.startup.model;
 
 import jakarta.persistence.*;
@@ -9,17 +10,19 @@ import wassa.mp.startup.Enumeration.StatutMembre;
 
 import java.time.LocalDateTime;
 
-@Entity @Data @NoArgsConstructor
-@AllArgsConstructor
-@Table(name = "membre_projet",
+@Entity
+@Table(
+        name = "membre_projet",
         uniqueConstraints = {
                 @UniqueConstraint(
-                        name = "uk_membre_projet_utilisateur",
-                        columnNames = {"projet_id", "utilisateur_id"}
+                        name = "uk_projet_user",
+                        columnNames = {"projet_id", "user_id"}
                 )
         }
 )
-
+@Data
+@NoArgsConstructor
+@AllArgsConstructor
 public class MembreProjet {
 
     @Id
@@ -31,8 +34,8 @@ public class MembreProjet {
     private Projet projet;
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "utilisateur_id", nullable = false)
-    private User utilisateur;
+    @JoinColumn(name = "user_id", nullable = false)
+    private User user;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
@@ -49,6 +52,7 @@ public class MembreProjet {
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     private StatutMembre statut;
+
     @PrePersist
     public void avantInsertion() {
         if (dateIntegration == null) {
@@ -59,5 +63,4 @@ public class MembreProjet {
             statut = StatutMembre.ACTIF;
         }
     }
-
 }
