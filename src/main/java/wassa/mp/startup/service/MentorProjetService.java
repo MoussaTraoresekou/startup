@@ -436,44 +436,51 @@ public ProjetResponseDto obtenirDetailsFicheProjet(
 
  */
 @Transactional(readOnly = true)
-    public ProjetResponseDto obtenirDetailsFicheProjet(
-            int projetId,
-            CustumUserDetail userConnecter) {
+public ProjetResponseDto obtenirDetailsFicheProjet(
+        int projetId,
+        CustumUserDetail userConnecter) {
 
-        // 1. Vérifier que le projet existe
-        Projet projet = projetRepository.findById(projetId)
-                .orElseThrow(() -> new ResourceNotFoundException(
-                        "Projet introuvable avec l'identifiant : " + projetId
-                ));
+    // 1. Vérifier que le projet existe
+    Projet projet = projetRepository.findById(projetId)
+            .orElseThrow(() -> new ResourceNotFoundException(
+                    "Projet introuvable avec l'identifiant : " + projetId
+            ));
 
-        // 2. Vérifier que l'utilisateur est connecté
-        if (userConnecter == null || userConnecter.getUser() == null) {
-            throw new OperationInterditeException(
-                    "Vous devez être connecté pour consulter ce projet."
-            );
-        }
-
-        int mentorId = userConnecter.getUser().getId();
-
-        // 3. Vérifier qu'une invitation existe pour ce mentor et ce projet
-        mentorProjetRepository
-                .findByMentorIdAndProjetId(mentorId, projetId)
-                .orElseThrow(() -> new OperationInterditeException(
-                        "Vous devez avoir reçu une invitation pour consulter ce projet."
-                ));
-
-        // 4. Retourner les informations du projet
-        return new ProjetResponseDto(
-                projet.getId(),
-                projet.getTitre(),
-                projet.getDescription(),
-                projet.getPith_url(),
-                projet.getQuota_propose(),
-                projet.getSecteurActivite().getNom(),
-                projet.getPorteur().getNomComplet(),
-                projet.getDate_creation()
+    // 2. Vérifier que l'utilisateur est connecté
+    if (userConnecter == null || userConnecter.getUser() == null) {
+        throw new OperationInterditeException(
+                "Vous devez être connecté pour consulter ce projet."
         );
     }
+
+    int mentorId = userConnecter.getUser().getId();
+
+    // 3. Vérifier qu'une invitation existe pour ce mentor et ce projet
+    mentorProjetRepository
+            .findByMentorIdAndProjetId(mentorId, projetId)
+            .orElseThrow(() -> new OperationInterditeException(
+                    "Vous devez avoir reçu une invitation pour consulter ce projet."
+            ));
+
+    // 4. Construire le DTO de réponse
+    ProjetResponseDto response = new ProjetResponseDto(
+            projet.getId(),
+            projet.getTitre(),
+            projet.getDescription(),
+            projet.getPith_url(),
+            projet.getQuota_propose(),
+            projet.getSecteurActivite().getNom(),
+            projet.getPorteur().getNomComplet(),
+            projet.getDate_creation()
+            //projet.getNombreLikes()
+    );
+
+    // 5. Ajouter les informations du pitch
+    response.setPith_thumbnail_url(projet.getPith_thumbnail_url());
+    response.setPith_type(projet.getPith_type());
+
+    return response;
+}
 
     @Transactional(readOnly = true)
     public List<ProjetResponseDto> obtenirStartupsAssigneesAuMentor(

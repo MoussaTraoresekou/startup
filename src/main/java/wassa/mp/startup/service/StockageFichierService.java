@@ -19,16 +19,16 @@ import java.util.concurrent.TimeUnit;
 @Service
 public class StockageFichierService {
 
-    private static final long TAILLE_MAX =
-            50L * 1024 * 1024;
+    private static final long TAILLE_MAX = 50L * 1024 * 1024;
+    @Value("${app.storage.location}")
 
     private final Path repertoireStockage;
+    @Value("${app.storage.ffmpeg-path:ffmpeg}")
     private final String cheminFfmpeg;
 
     public StockageFichierService(
             @Value("${app.storage.location}") String emplacement,
-            @Value("${app.storage.ffmpeg-path:ffmpeg}")
-            String cheminFfmpeg) {
+            @Value("${app.storage.ffmpeg-path:ffmpeg}") String cheminFfmpeg) {
 
         this.repertoireStockage = Paths.get(emplacement)
                 .toAbsolutePath()
@@ -37,11 +37,12 @@ public class StockageFichierService {
         this.cheminFfmpeg = cheminFfmpeg;
     }
 
-    /**
-     * Enregistre un PDF ou une vidéo MP4.
-     * Retourne le nom unique du fichier enregistré.
-     */
     public String enregistrerPitch(MultipartFile fichier) {
+        return enregistrerPitchAvecDetails(fichier).nomFichier();
+    }
+
+    public ResultatStockagePitch enregistrerPitchAvecDetails(
+            MultipartFile fichier) {
 
         if (fichier == null || fichier.isEmpty()) {
             throw new IllegalArgumentException(
@@ -75,8 +76,7 @@ public class StockageFichierService {
                 .substring(positionPoint + 1)
                 .toLowerCase(Locale.ROOT);
 
-        if (!extension.equals("pdf")
-                && !extension.equals("mp4")) {
+        if (!extension.equals("pdf") && !extension.equals("mp4")) {
             throw new IllegalArgumentException(
                     "Seuls les fichiers PDF et MP4 sont acceptés.");
         }
@@ -86,10 +86,12 @@ public class StockageFichierService {
         String nomUnique = UUID.randomUUID() + "." + extension;
         Path destination = obtenirChemin(nomUnique);
 
+        String nomMiniature = null;
+        String type = extension.equals("pdf") ? "PDF" : "VIDEO";
+
         try {
             Files.createDirectories(repertoireStockage);
 
-            // CREATE_NEW interdit l'écrasement d'un fichier existant.
             try (InputStream entree = fichier.getInputStream();
                  OutputStream sortie = Files.newOutputStream(
                          destination,
@@ -103,12 +105,19 @@ public class StockageFichierService {
                 verifierSignaturePdf(destination);
             } else {
                 genererMiniature(destination);
+
+                String base = nomUnique.substring(
+                        0, nomUnique.lastIndexOf('.'));
+
+                nomMiniature = base + ".jpg";
             }
 
-            return nomUnique;
+            return new ResultatStockagePitch(
+                    nomUnique,
+                    nomMiniature,
+                    type);
 
         } catch (IOException | RuntimeException e) {
-
             supprimerSilencieusement(destination);
 
             String base = nomUnique.substring(
@@ -127,10 +136,6 @@ public class StockageFichierService {
         }
     }
 
-    /**
-     * Vérifie le type MIME déclaré par le client.
-     * Cette vérification complète celle du contenu réel.
-     */
     private void verifierTypeMime(
             MultipartFile fichier,
             String extension) {
@@ -156,12 +161,7 @@ public class StockageFichierService {
         }
     }
 
-    /**
-     * Vérification minimale de la signature d'un PDF.
-     */
-    private void verifierSignaturePdf(Path fichier)
-            throws IOException {
-
+    private void verifierSignaturePdf(Path fichier) throws IOException {
         byte[] signature = new byte[5];
 
         try (InputStream entree = Files.newInputStream(fichier)) {
@@ -180,11 +180,7 @@ public class StockageFichierService {
         }
     }
 
-    /**
-     * Génère une miniature JPG à partir d'une vidéo MP4.
-     */
     private void genererMiniature(Path video) throws IOException {
-
         String nom = video.getFileName().toString();
         String base = nom.substring(0, nom.lastIndexOf('.'));
 
@@ -208,8 +204,7 @@ public class StockageFichierService {
         Process processus = commande.start();
 
         try {
-            boolean termine = processus.waitFor(
-                    30, TimeUnit.SECONDS);
+            boolean termine = processus.waitFor(30, TimeUnit.SECONDS);
 
             if (!termine) {
                 processus.destroyForcibly();
@@ -235,12 +230,7 @@ public class StockageFichierService {
         }
     }
 
-    /**
-     * Retourne le chemin sécurisé d'un fichier stocké.
-     * Seuls les noms UUID attendus sont acceptés.
-     */
     public Path obtenirChemin(String nomFichier) {
-
         if (nomFichier == null
                 || !nomFichier.matches(
                 "[a-fA-F0-9-]{36}\\.(pdf|mp4|jpg)")) {
@@ -261,14 +251,10 @@ public class StockageFichierService {
         return chemin;
     }
 
-    /**
-     * Supprime un fichier sans masquer l'erreur initiale.
-     */
     private void supprimerSilencieusement(Path chemin) {
         try {
             Files.deleteIfExists(chemin);
         } catch (IOException ignored) {
-            // La suppression ne doit pas masquer l'erreur initiale.
         }
     }
 
@@ -276,11 +262,7 @@ public class StockageFichierService {
         return cheminFfmpeg;
     }
 
-    /**
-     * Supprime un pitch et sa miniature éventuelle.
-     */
     public void supprimerPitch(String nomFichier) {
-
         if (nomFichier == null || nomFichier.isBlank()) {
             return;
         }
@@ -297,7 +279,6 @@ public class StockageFichierService {
         try {
             Files.deleteIfExists(chemin);
 
-            // Une vidéo MP4 peut avoir une miniature JPG associée.
             if (nomFichier.toLowerCase(Locale.ROOT).endsWith(".mp4")) {
                 String base = nomFichier.substring(
                         0, nomFichier.lastIndexOf('.'));

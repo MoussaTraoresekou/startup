@@ -81,6 +81,7 @@ public class PorteurController {
         dto.setQuota_propose(quotaPropose);
         dto.setSecteur_id(secteurId);
 
+
         Projet projet = projetService.creaProjet(
                 dto,
                 fichierPitch,
@@ -96,7 +97,11 @@ public class PorteurController {
                 projet.getSecteurActivite().getNom(),
                 userConnecter.getUser().getNomComplet(),
                 projet.getDate_creation()
+
         );
+        // Ajouter la miniature et le type du pitch
+        response.setPith_thumbnail_url(projet.getPith_thumbnail_url());
+        response.setPith_type(projet.getPith_type());
 
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }

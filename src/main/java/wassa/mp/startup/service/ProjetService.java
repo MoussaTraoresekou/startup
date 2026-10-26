@@ -146,6 +146,7 @@ public class ProjetService {
     /**
      * Crée un projet et enregistre éventuellement son pitch localement.
      */
+
     @Transactional
     public Projet creaProjet(
             ProjetRequestDto projetRequestDto,
@@ -180,23 +181,35 @@ public class ProjetService {
                 )
         );
 
+        String nouveauNom = null;
+        String nomMiniature = null;
+
         if (fichierPitch != null && !fichierPitch.isEmpty()) {
 
-            String nouveauNom =
-                    stockageFichierService.enregistrerPitch(fichierPitch);
+            ResultatStockagePitch resultat =
+                    stockageFichierService.enregistrerPitchAvecDetails(fichierPitch);
 
-            projet.setPith_url(nouveauNom);
+            nouveauNom = resultat.nomFichier();
+            nomMiniature = resultat.nomMiniature();
 
-            // Si la transaction échoue, supprimer le nouveau fichier.
-            programmerNettoyageApresTransaction(nouveauNom, null);
+            projet.setPith_url(resultat.nomFichier());
+            projet.setPith_thumbnail_url(resultat.nomMiniature());
+            projet.setPith_type(resultat.type());
+
+            programmerNettoyageApresTransaction(
+                    nouveauNom,
+                    nomMiniature
+            );
 
         } else {
-            // Le pitch est facultatif.
             projet.setPith_url(null);
+            projet.setPith_thumbnail_url(null);
+            projet.setPith_type(null);
         }
 
         return projetRepository.save(projet);
     }
+
 
     /**
      * Retourne les détails d'un projet appartenant au porteur connecté.
@@ -408,6 +421,7 @@ public class ProjetService {
     /**
      * Convertit un projet en DTO et ajoute son nombre de likes.
      */
+
     private ProjetResponseDto versDto(
             Projet projet,
             String nomPorteur,
@@ -423,15 +437,15 @@ public class ProjetService {
                         ? projet.getSecteurActivite().getNom()
                         : "Général",
                 nomPorteur,
-                projet.getDate_creation()
-        );
-
-        dto.setNombreLikes(
-                likes.getOrDefault(projet.getId(), 0L)
+                projet.getDate_creation(),
+                likes.getOrDefault(projet.getId(), 0L),
+                projet.getPith_thumbnail_url(),
+                projet.getPith_type()
         );
 
         return dto;
     }
+
 
     /**
      * Convertit un seul projet en DTO avec son nombre de likes.
