@@ -4,6 +4,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.multipart.MultipartFile;
 import wassa.mp.startup.Enumeration.RoleEnum;
 import wassa.mp.startup.dto.MentorEnAttenteResponseDto;
 import wassa.mp.startup.dto.MentorRegisterRequestDto;
@@ -29,40 +30,83 @@ public class MentorService {
     private EmailService emailService;
     @Autowired
     private SecteurActiviteRepository secteurActiviteRepository;
-    public MentorReponseDto inscrireMentor(MentorRegisterRequestDto dto) {
+    @Autowired
+    private StockageFichierService stockageFichierService;
+    @Transactional
+    public MentorReponseDto inscrireMentor(
+            MentorRegisterRequestDto dto,
+            MultipartFile cv,
+            MultipartFile diplome) {
 
-        Mentor mentor = new Mentor();
-        mentor.setPrenom(dto.getPrenom());
-        mentor.setNom(dto.getNom());
-        mentor.setEmail(dto.getEmail());
-        mentor.setRole(RoleEnum.MENTOR);
-        mentor.setTelephone(dto.getTelephone());
-        mentor.setPassword(passwordEncoder.encode(dto.getMotDePass()));
-        mentor.setCv_url(dto.getCvUrl());
-        mentor.setDiplome_url(dto.getDiplomeUrl());
-        mentor.setSecteurActivite(secteurActiviteRepository.findById(dto.getSecteur()).get());
-        mentor.setDescription(dto.getDescription());
-        mentor.setStatuEnumMentor(StatuEnumMentor.EN_ATTENTE);
+        String nomCv = null;
+        String nomDiplome = null;
 
-        Mentor m = mentorRepository.save(mentor);
+        try {
+            nomCv = stockageFichierService.enregistrerPitch(cv);
+            nomDiplome = stockageFichierService.enregistrerPitch(diplome);
 
-        // Envoyer le lien de vérification au mentor
-        emailVerificationService.envoyerLienVerification(m);
+            Mentor mentor = new Mentor();
+            mentor.setPrenom(dto.getPrenom());
+            mentor.setNom(dto.getNom());
+            mentor.setEmail(dto.getEmail());
+            mentor.setRole(RoleEnum.MENTOR);
+            mentor.setTelephone(dto.getTelephone());
+            mentor.setPassword(passwordEncoder.encode(dto.getMotDePass()));
+            mentor.setCv_url(nomCv);
+            mentor.setDiplome_url(nomDiplome);
 
-        return new MentorReponseDto(
-                m.getId(),
-                m.getNom(),
-                m.getPrenom(),
-                m.getDiplome_url(),
-                m.getCv_url(),
-                m.getStatuEnumMentor().toString(),
-                m.getTelephone(),
-                m.getRole().toString(),
-                m.getEmail(),
-                m.getDateCreation(),
-                m.getDescription(),
-                m.getSecteurActivite().getNom()!=null?m.getSecteurActivite().getNom():""
-        );
+            mentor.setSecteurActivite(
+                    secteurActiviteRepository.findById(dto.getSecteur())
+                            .orElseThrow(() ->
+                                    new ResourceNotFoundException(
+                                            "Secteur d'activité introuvable."
+                                    )
+                            )
+            );
+
+            mentor.setDescription(dto.getDescription());
+            mentor.setStatuEnumMentor(StatuEnumMentor.EN_ATTENTE);
+
+            Mentor m = mentorRepository.save(mentor);
+
+            emailVerificationService.envoyerLienVerification(m);
+
+            return new MentorReponseDto(
+                    m.getId(),
+                    m.getNom(),
+                    m.getPrenom(),
+                    m.getDiplome_url(),
+                    m.getCv_url(),
+                    m.getStatuEnumMentor().toString(),
+                    m.getTelephone(),
+                    m.getRole().toString(),
+                    m.getEmail(),
+                    m.getDateCreation(),
+                    m.getDescription(),
+                    m.getSecteurActivite().getNom() != null
+                            ? m.getSecteurActivite().getNom()
+                            : ""
+            );
+
+        } catch (RuntimeException e) {
+            if (nomCv != null) {
+                try {
+                    stockageFichierService.supprimerPitch(nomCv);
+                } catch (RuntimeException erreurSuppression) {
+                    e.addSuppressed(erreurSuppression);
+                }
+            }
+
+            if (nomDiplome != null) {
+                try {
+                    stockageFichierService.supprimerPitch(nomDiplome);
+                } catch (RuntimeException erreurSuppression) {
+                    e.addSuppressed(erreurSuppression);
+                }
+            }
+
+            throw e;
+        }
     }
     public MentorReponseDto validerDossierMentor(int mentorId) {
 

@@ -4,13 +4,9 @@ import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
-@Data
+@Data @AllArgsConstructor
 @NoArgsConstructor
-@AllArgsConstructor
-public class MembreEquipeDto {
-    private int id;
-    private String nom;
-    private String prenom;
-    private String roleEcosysteme;
+public class AccueilPorteurDto {
     private String specialite;
+    private int nbrProjetRejoint;
 }

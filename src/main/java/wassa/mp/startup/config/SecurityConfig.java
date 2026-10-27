@@ -1,3 +1,4 @@
+
 package wassa.mp.startup.config;
 
 import java.util.List;
@@ -31,6 +32,7 @@ public class SecurityConfig {
     public SecurityConfig(
             UserDetailsService userDetailsService,
             JwtAuthentificationFilter jwtAuthentificationFilter) {
+
         this.userDetailsService = userDetailsService;
         this.jwtAuthentificationFilter = jwtAuthentificationFilter;
     }
@@ -42,34 +44,54 @@ public class SecurityConfig {
         httpSecurity
                 .csrf(csrf -> csrf.disable())
 
-                // CORRECTION : Associe explicitement le filtre CORS au Bean CorsConfigurationSource défini plus bas
-                .cors(cors -> cors.configurationSource(corsConfigurationSource()))
+                .cors(cors ->
+                        cors.configurationSource(corsConfigurationSource())
+                )
 
                 .sessionManagement(session -> session
                         .sessionCreationPolicy(SessionCreationPolicy.STATELESS)
                 )
 
                 .exceptionHandling(exception -> exception
-                        .authenticationEntryPoint((request, response, authException) -> {
-                            response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
-                            response.setContentType("application/json");
-                            response.setCharacterEncoding("UTF-8");
-                            response.getWriter().write(
-                                    "{\"status\":401,\"message\":\"Authentification requise ou session expirée.\"}"
-                            );
-                        })
-                        .accessDeniedHandler((request, response, accessDeniedException) -> {
-                            response.setStatus(HttpServletResponse.SC_FORBIDDEN);
-                            response.setContentType("application/json");
-                            response.setCharacterEncoding("UTF-8");
-                            response.getWriter().write(
-                                    "{\"status\":403,\"message\":\"Vous n'avez pas les droits nécessaires pour accéder à cette ressource.\"}"
-                            );
-                        })
+
+                        .authenticationEntryPoint(
+                                (request, response, authException) -> {
+                                    response.setStatus(
+                                            HttpServletResponse.SC_UNAUTHORIZED
+                                    );
+                                    response.setContentType(
+                                            "application/json"
+                                    );
+                                    response.setCharacterEncoding("UTF-8");
+
+                                    response.getWriter().write(
+                                            "{\"status\":401,\"message\":\"Authentification requise ou session expirée.\"}"
+                                    );
+                                }
+                        )
+
+                        .accessDeniedHandler(
+                                (request, response, accessDeniedException) -> {
+                                    response.setStatus(
+                                            HttpServletResponse.SC_FORBIDDEN
+                                    );
+                                    response.setContentType(
+                                            "application/json"
+                                    );
+                                    response.setCharacterEncoding("UTF-8");
+
+                                    response.getWriter().write(
+                                            "{\"status\":403,\"message\":\"Vous n'avez pas les droits nécessaires pour accéder à cette ressource.\"}"
+                                    );
+                                }
+                        )
                 )
 
                 .authorizeHttpRequests(request -> request
+
+                        // Routes accessibles sans authentification.
                         .requestMatchers(
+                                "/favicon.ico",
                                 "/api/user/login",
                                 "/api/porteur/register",
                                 "/api/investisseur/register",
@@ -78,21 +100,42 @@ public class SecurityConfig {
                                 "/swagger-ui.html",
                                 "/v3/api-docs/**",
                                 "/api/email/**",
-                                "/api/secteur/**" ,
+                                "/api/secteur/**",
                                 "/api/specialites/**",
-                                // Autoriser uniquement la négociation initiale WebSocket
+
+                                // Négociation initiale WebSocket.
                                 "/ws",
                                 "/ws/**"
                         ).permitAll()
 
-                        .requestMatchers("/api/admin/**").hasRole("ADMIN")
-                        .requestMatchers("/api/porteur/**").hasRole("PORTEUR")
-                        .requestMatchers("/api/mentor/**").hasRole("MENTOR")
-                        .requestMatchers("/api/collaborateur/**").hasRole("COLLABORATEUR")
-                        .requestMatchers("/api/investisseur/**").hasRole("INVESTISSEUR")
+                        // Routes réservées aux rôles concernés.
+                        .requestMatchers("/api/admin/**")
+                        .hasRole("ADMIN")
 
-                        .requestMatchers("/api/notifications/**").authenticated()
-                        .requestMatchers("/api/conversations/**").authenticated()
+                        .requestMatchers("/api/porteur/**")
+                        .hasRole("PORTEUR")
+
+                        .requestMatchers("/api/mentor/**")
+                        .hasRole("MENTOR")
+
+                        .requestMatchers("/api/collaborateur/**")
+                        .hasRole("COLLABORATEUR")
+
+                        .requestMatchers("/api/investisseur/**")
+                        .hasRole("INVESTISSEUR")
+
+                        // Routes réservées aux utilisateurs authentifiés.
+                        .requestMatchers("/api/notifications/**")
+                        .authenticated()
+
+                        .requestMatchers("/api/conversations/**")
+                        .authenticated()
+
+                        // Les fichiers restent protégés.
+                        .requestMatchers("/api/fichiers/**")
+                        .authenticated()
+
+                        // Toute autre route exige une authentification.
                         .anyRequest().authenticated()
                 )
 
@@ -108,27 +151,46 @@ public class SecurityConfig {
 
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
+
         CorsConfiguration configuration = new CorsConfiguration();
 
-        // AMÉLIORATION : Autorise toutes les adresses IP (dont votre smartphone connecté en Wi-Fi) en phase de dev
+        // Configuration permissive pour le développement.
         configuration.setAllowedOriginPatterns(List.of("*"));
 
         configuration.setAllowedMethods(
-                List.of("GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS")
+                List.of(
+                        "GET",
+                        "POST",
+                        "PUT",
+                        "DELETE",
+                        "PATCH",
+                        "OPTIONS"
+                )
         );
 
         configuration.setAllowedHeaders(
-                List.of("Authorization", "Content-Type", "Accept")
+                List.of(
+                        "Authorization",
+                        "Content-Type",
+                        "Accept",
+                        "Range"
+                )
         );
 
         configuration.setExposedHeaders(
-                List.of("Authorization")
+                List.of(
+                        "Authorization",
+                        "Accept-Ranges",
+                        "Content-Range",
+                        "Content-Length"
+                )
         );
 
-        // Doit obligatoirement être à true pour s'aligner avec l'usage du pattern d'origine générique "*"
         configuration.setAllowCredentials(true);
 
-        UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
+        UrlBasedCorsConfigurationSource source =
+                new UrlBasedCorsConfigurationSource();
+
         source.registerCorsConfiguration("/**", configuration);
 
         return source;
@@ -141,14 +203,19 @@ public class SecurityConfig {
 
     @Bean
     public AuthenticationProvider authenticationProvider() {
-        DaoAuthenticationProvider provider = new DaoAuthenticationProvider(userDetailsService);
+
+        DaoAuthenticationProvider provider =
+                new DaoAuthenticationProvider(userDetailsService);
+
         provider.setPasswordEncoder(bCryptPasswordEncoder());
+
         return provider;
     }
 
     @Bean
     public AuthenticationManager authenticationManager(
             AuthenticationConfiguration configuration) throws Exception {
+
         return configuration.getAuthenticationManager();
     }
 }
