@@ -1,7 +1,7 @@
 package wassa.mp.startup.service;
 
+import org.apache.poi.wp.usermodel.HeaderFooterType;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import wassa.mp.startup.CustumUserDetail;
@@ -21,6 +21,14 @@ import java.nio.charset.StandardCharsets;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
+import org.apache.poi.xwpf.usermodel.*;
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Objects;
 
 @Service
 public class ProjetEtapeService {
@@ -113,7 +121,8 @@ public class ProjetEtapeService {
         }
     }
 
-    public byte[] genererDocumentLivrable(int projetEtapeId, CustumUserDetail userConnecter) {
+
+    public byte[] genererDocumentLivrablelaisser(int projetEtapeId, CustumUserDetail userConnecter) {
         // 1. Récupération de l'étape du projet
         ProjetEtape projetEtape = projetEtapeRepository.findById(projetEtapeId).orElseThrow(
                 () -> new ResourceNotFoundException("L'étape de projet demandée n'existe pas")
@@ -159,6 +168,7 @@ public class ProjetEtapeService {
 
         return doc.toString().getBytes(StandardCharsets.UTF_8);
     }
+
     /*
     @Transactional
     public void soumettreLivrableEtape(int projetEtapeId, CustumUserDetail userConnecter) {
@@ -442,6 +452,360 @@ public class ProjetEtapeService {
                                 "Vous n'êtes pas un mentor accepté pour ce projet."
                         )
                 );
+    }
+
+    public byte[] genererDocumentLivrable(
+            int projetEtapeId,
+            CustumUserDetail userConnecter) {
+
+        // 1. Récupérer l'étape du projet
+        ProjetEtape projetEtape = projetEtapeRepository
+                .findById(projetEtapeId)
+                .orElseThrow(() ->
+                        new ResourceNotFoundException(
+                                "L'étape de projet demandée n'existe pas."
+                        )
+                );
+
+        // 2. Vérifier que l'utilisateur est le porteur du projet
+        if (projetEtape.getProjet().getPorteur().getId()
+                != userConnecter.getUser().getId()) {
+
+            throw new NonAutoriseException(
+                    "Vous n'êtes pas autorisé à télécharger le livrable de ce projet."
+            );
+        }
+
+        // 3. Récupérer les questions et les réponses de cette étape uniquement
+        var questions = projetEtape.getEtape().getQuestions();
+        List<Reponse> reponses = projetEtape.getReponse();
+
+        // 4. Vérifier que chaque question possède une réponse non vide
+        List<String> questionsSansReponse = new ArrayList<>();
+
+        for (var question : questions) {
+
+            boolean repondu = reponses.stream().anyMatch(r ->
+                    Objects.equals(
+                            r.getQuestion().getId(),
+                            question.getId()
+                    )
+                            && r.getReponse() != null
+                            && !r.getReponse().isBlank()
+            );
+
+            if (!repondu) {
+                questionsSansReponse.add(question.getLibelle());
+            }
+        }
+
+        if (!questionsSansReponse.isEmpty()) {
+            throw new OperationInterditeException(
+                    "Le livrable ne peut pas être généré. "
+                            + questionsSansReponse.size()
+                            + " question(s) restent sans réponse."
+            );
+        }
+
+        // 5. Créer le véritable document Word
+        try (
+                XWPFDocument document = new XWPFDocument();
+                ByteArrayOutputStream output = new ByteArrayOutputStream()
+        ) {
+
+            // En-tête du document
+            XWPFHeader header =
+                    document.createHeader(HeaderFooterType.DEFAULT);
+
+            XWPFParagraph paragrapheEntete =
+                    header.createParagraph();
+
+            paragrapheEntete.setAlignment(
+                    ParagraphAlignment.RIGHT
+            );
+
+            XWPFRun texteEntete = paragrapheEntete.createRun();
+
+            texteEntete.setText("ENTREPRENEUR360");
+            texteEntete.setBold(true);
+            texteEntete.setFontFamily("Arial");
+            texteEntete.setFontSize(9);
+            texteEntete.setColor("047857");
+
+            // Titre principal
+            XWPFParagraph titre = document.createParagraph();
+
+            titre.setAlignment(ParagraphAlignment.CENTER);
+            titre.setSpacingBefore(500);
+            titre.setSpacingAfter(120);
+
+            XWPFRun texteTitre = titre.createRun();
+
+            texteTitre.setText("LIVRABLE DE FIN D'ÉTAPE");
+            texteTitre.setBold(true);
+            texteTitre.setFontFamily("Arial");
+            texteTitre.setFontSize(21);
+            texteTitre.setColor("047857");
+
+            // Sous-titre
+            XWPFParagraph sousTitre = document.createParagraph();
+
+            sousTitre.setAlignment(ParagraphAlignment.CENTER);
+            sousTitre.setSpacingAfter(350);
+
+            XWPFRun texteSousTitre = sousTitre.createRun();
+
+            texteSousTitre.setText(
+                    "QUESTIONNAIRE ET SYNTHÈSE DES RÉPONSES"
+            );
+
+            texteSousTitre.setFontFamily("Arial");
+            texteSousTitre.setFontSize(11);
+            texteSousTitre.setColor("64748B");
+
+            // Informations générales
+            ajouterLigneInformation(
+                    document,
+                    "Projet",
+                    projetEtape.getProjet().getTitre()
+            );
+
+            ajouterLigneInformation(
+                    document,
+                    "Étape",
+                    String.valueOf(projetEtape.getEtape().getType())
+            );
+
+            ajouterLigneInformation(
+                    document,
+                    "Statut",
+                    String.valueOf(projetEtape.getStatutEtape())
+            );
+
+            ajouterLigneInformation(
+                    document,
+                    "Date de génération",
+                    LocalDate.now().format(
+                            DateTimeFormatter.ofPattern("dd/MM/yyyy")
+                    )
+            );
+
+            // Séparation avant le questionnaire
+            XWPFParagraph separation = document.createParagraph();
+
+            separation.setSpacingBefore(150);
+            separation.setSpacingAfter(150);
+
+            separation.setBorderBottom(Borders.SINGLE);
+
+            // Titre de la section
+            XWPFParagraph titreQuestionnaire =
+                    document.createParagraph();
+
+            titreQuestionnaire.setSpacingBefore(180);
+            titreQuestionnaire.setSpacingAfter(220);
+            titreQuestionnaire.setKeepNext(true);
+
+            XWPFRun texteQuestionnaire =
+                    titreQuestionnaire.createRun();
+
+            texteQuestionnaire.setText(
+                    "RÉPONSES AU QUESTIONNAIRE"
+            );
+
+            texteQuestionnaire.setBold(true);
+            texteQuestionnaire.setFontFamily("Arial");
+            texteQuestionnaire.setFontSize(15);
+            texteQuestionnaire.setColor("047857");
+
+            // 6. Parcourir les questions dans l'ordre de l'étape
+            int numero = 1;
+
+            for (var question : questions) {
+
+                Reponse reponse = reponses.stream()
+                        .filter(r ->
+                                Objects.equals(
+                                        r.getQuestion().getId(),
+                                        question.getId()
+                                )
+                        )
+                        .filter(r ->
+                                r.getReponse() != null
+                                        && !r.getReponse().isBlank()
+                        )
+                        .findFirst()
+                        .orElseThrow(() ->
+                                new OperationInterditeException(
+                                        "Une question ne possède pas de réponse."
+                                )
+                        );
+
+                // Numéro et intitulé de la question
+                XWPFParagraph paragrapheQuestion =
+                        document.createParagraph();
+
+                paragrapheQuestion.setSpacingBefore(220);
+                paragrapheQuestion.setSpacingAfter(100);
+                paragrapheQuestion.setKeepNext(true);
+
+                XWPFRun texteQuestion =
+                        paragrapheQuestion.createRun();
+
+                texteQuestion.setText(
+                        numero + ". " + question.getLibelle()
+                );
+
+                texteQuestion.setBold(true);
+                texteQuestion.setFontFamily("Arial");
+                texteQuestion.setFontSize(12);
+                texteQuestion.setColor("164E63");
+
+                // Libellé Réponse
+                XWPFParagraph paragrapheReponse =
+                        document.createParagraph();
+
+                paragrapheReponse.setSpacingAfter(70);
+                paragrapheReponse.setKeepNext(true);
+
+                XWPFRun libelleReponse =
+                        paragrapheReponse.createRun();
+
+                libelleReponse.setText("Réponse");
+                libelleReponse.setBold(true);
+                libelleReponse.setFontFamily("Arial");
+                libelleReponse.setFontSize(10);
+                libelleReponse.setColor("047857");
+
+                // Texte complet de la réponse
+                ajouterTexteReponse(
+                        document,
+                        reponse.getReponse()
+                );
+
+                numero++;
+            }
+
+            // Pied de page
+            XWPFFooter footer =
+                    document.createFooter(HeaderFooterType.DEFAULT);
+
+            XWPFParagraph paragraphePied =
+                    footer.createParagraph();
+
+            paragraphePied.setAlignment(
+                    ParagraphAlignment.CENTER
+            );
+
+            XWPFRun textePied = paragraphePied.createRun();
+
+            textePied.setText(
+                    "Plateforme Entrepreneur360"
+            );
+
+            textePied.setFontFamily("Arial");
+            textePied.setFontSize(8);
+            textePied.setColor("64748B");
+
+            // Générer les octets du fichier DOCX
+            document.write(output);
+
+            return output.toByteArray();
+
+        } catch (IOException e) {
+
+            throw new IllegalStateException(
+                    "Une erreur est survenue lors de la génération du document Word.",
+                    e
+            );
+        }
+    }
+
+
+    // Ajouter une ligne d'information avec une présentation homogène
+    private void ajouterLigneInformation(
+            XWPFDocument document,
+            String libelle,
+            String valeur) {
+
+        XWPFParagraph paragraphe = document.createParagraph();
+
+        paragraphe.setSpacingAfter(90);
+
+        XWPFRun texteLibelle = paragraphe.createRun();
+
+        texteLibelle.setText(libelle + " : ");
+        texteLibelle.setBold(true);
+        texteLibelle.setFontFamily("Arial");
+        texteLibelle.setFontSize(10);
+        texteLibelle.setColor("334155");
+
+        XWPFRun texteValeur = paragraphe.createRun();
+
+        texteValeur.setText(
+                valeur == null ? "Non renseigné" : valeur
+        );
+
+        texteValeur.setFontFamily("Arial");
+        texteValeur.setFontSize(10);
+        texteValeur.setColor("1E293B");
+    }
+
+
+    // Préserver les paragraphes et les listes des réponses longues
+    private void ajouterTexteReponse(
+            XWPFDocument document,
+            String texte) {
+
+        if (texte == null || texte.isBlank()) {
+            XWPFParagraph paragraphe = document.createParagraph();
+
+            XWPFRun run = paragraphe.createRun();
+
+            run.setText("Aucune réponse renseignée.");
+            run.setItalic(true);
+            run.setFontFamily("Arial");
+            run.setFontSize(11);
+
+            return;
+        }
+
+        String texteNormalise = texte
+                .replace("\r\n", "\n")
+                .replace('\r', '\n');
+
+        String[] lignes = texteNormalise.split("\n", -1);
+
+        for (String ligne : lignes) {
+
+            XWPFParagraph paragraphe = document.createParagraph();
+
+            paragraphe.setAlignment(ParagraphAlignment.LEFT);
+            paragraphe.setSpacingAfter(100);
+            paragraphe.setSpacingBetween(1.15);
+
+            String contenu = ligne.strip();
+
+            if (contenu.isEmpty()) {
+                paragraphe.setSpacingAfter(60);
+                continue;
+            }
+
+            // Indentation légère des éléments de liste
+            if (contenu.startsWith("•")
+                    || contenu.startsWith("-")
+                    || contenu.startsWith("–")) {
+
+                paragraphe.setIndentationLeft(360);
+            }
+
+            XWPFRun run = paragraphe.createRun();
+
+            run.setText(contenu);
+            run.setFontFamily("Arial");
+            run.setFontSize(11);
+            run.setColor("1E293B");
+        }
     }
 
 

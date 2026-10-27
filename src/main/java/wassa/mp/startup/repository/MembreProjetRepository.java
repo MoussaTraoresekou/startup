@@ -39,4 +39,9 @@ public interface MembreProjetRepository
             int utilisateurId,
             StatutMembre statut
     );
+    int countByUser_IdAndStatut(int userId, StatutMembre statut);
+    List<MembreProjet> findByProjetIdAndStatut(
+            int projetId,
+            StatutMembre statut
+    );
 }

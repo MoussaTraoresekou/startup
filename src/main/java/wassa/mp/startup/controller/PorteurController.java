@@ -55,6 +55,8 @@ public class PorteurController {
     private CandidatureService candidatureService;
     @Autowired
     private TacheService tacheService;
+    @Autowired
+    private DashboardPorteurService dashboardPorteurService;
 
     @PostMapping("/register")
     public ResponseEntity<PorteurResponseDto> createPorteur(@RequestBody PorteurRequestDto porteurRequestDto) {
@@ -174,7 +176,7 @@ public class PorteurController {
                 new ReponseResponseDto(reponse.getId(), reponse.getProjetEtape().getProjet().getTitre(), reponse.getProjetEtape().getEtape().getType().toString(), reponse.getQuestion().getLibelle(), reponse.getReponse())
         );
     }
-
+/*
     @GetMapping("/projetEtape/{projetEtapeId}/telecharger-livrable")
     public ResponseEntity<byte[]> telechargerLivrable(
             @PathVariable int projetEtapeId,
@@ -186,6 +188,29 @@ public class PorteurController {
                 .contentType(org.springframework.http.MediaType.TEXT_PLAIN)
                 .body(contenuFichier);
     }
+
+ */
+@GetMapping("/projetEtape/{projetEtapeId}/telecharger-livrable")
+public ResponseEntity<byte[]> telechargerLivrable(@PathVariable int projetEtapeId, @AuthenticationPrincipal CustumUserDetail userConnecter) {
+
+    byte[] contenuFichier = projetEtapeService.genererDocumentLivrable(projetEtapeId, userConnecter
+    );
+    String nomFichier =
+            "Livrable_Etape_" + projetEtapeId + ".docx";
+
+    return ResponseEntity.ok()
+            .header(
+                    org.springframework.http.HttpHeaders.CONTENT_DISPOSITION,
+                    "attachment; filename=\"" + nomFichier + "\""
+            )
+            .contentType(
+                    org.springframework.http.MediaType.parseMediaType(
+                            "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+                    )
+            )
+            .contentLength(contenuFichier.length)
+            .body(contenuFichier);
+}
 
     @PostMapping("/solliciter-mentor")
     public ResponseEntity<Map<String, String>> solliciterMentor(
@@ -333,7 +358,22 @@ public class PorteurController {
                 )
         );
     }
+    @GetMapping("/acceil_info")
+   public  AccueilPorteurDto  infoAffichage(@AuthenticationPrincipal CustumUserDetail userDetail){
+        return  porteurService.infoAffichage(userDetail);
+   }
+    @GetMapping("/projets/{projetId}/dashboard")
+    public ResponseEntity<DashboardPorteurDto> obtenirDashboard(
+            @PathVariable int projetId,
+            @AuthenticationPrincipal CustumUserDetail userConnecter) {
 
+        DashboardPorteurDto dashboard =
+                dashboardPorteurService.obtenirDashboard(
+                        projetId,
+                        userConnecter
+                );
 
+        return ResponseEntity.ok(dashboard);
+    }
 
 }

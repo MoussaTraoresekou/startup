@@ -3,10 +3,14 @@ package wassa.mp.startup.service;
 import jakarta.transaction.Transactional;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
+import wassa.mp.startup.CustumUserDetail;
 import wassa.mp.startup.Enumeration.RoleEnum;
+import wassa.mp.startup.Enumeration.StatutMembre;
+import wassa.mp.startup.dto.AccueilPorteurDto;
 import wassa.mp.startup.dto.PorteurRequestDto;
 import wassa.mp.startup.dto.PorteurResponseDto;
 import wassa.mp.startup.model.Porteur;
+import wassa.mp.startup.repository.MembreProjetRepository;
 import wassa.mp.startup.repository.PorteurRepository;
 import wassa.mp.startup.repository.SpecialiteRepository;
 
@@ -18,11 +22,13 @@ public class PorteurService {
     private final BCryptPasswordEncoder bCryptPasswordEncoder;
     private final EmailVerificationService emailVerificationService;
     private  final SpecialiteRepository specialiteRepository;
-    public PorteurService(PorteurRepository porteurRepository,BCryptPasswordEncoder bCryptPasswordEncoder,EmailVerificationService emailVerificationService,SpecialiteRepository specialiteRepository) {
+    private final MembreProjetRepository membreProjetRepository;
+    public PorteurService(PorteurRepository porteurRepository,BCryptPasswordEncoder bCryptPasswordEncoder,EmailVerificationService emailVerificationService,SpecialiteRepository specialiteRepository,MembreProjetRepository membreProjetRepository) {
         this.porteurRepository = porteurRepository;
         this.bCryptPasswordEncoder = bCryptPasswordEncoder;
         this.emailVerificationService=emailVerificationService;
         this.specialiteRepository=specialiteRepository;
+        this.membreProjetRepository=membreProjetRepository;
     }
     //l'incription d'un porteur de projet
     @Transactional
@@ -66,7 +72,12 @@ public class PorteurService {
         );
     }
 
+  public AccueilPorteurDto infoAffichage(CustumUserDetail userDetail){
+         Porteur porteur=porteurRepository.findById(userDetail.getUser().getId()).get();
+         int nombreProjetRejoint=membreProjetRepository.countByUser_IdAndStatut(userDetail.getUser().getId(), StatutMembre.ACTIF);
+         return  new AccueilPorteurDto(porteur.getSpecialite().getLibelle(),nombreProjetRejoint);
 
+  }
 
 
 }
