@@ -5,13 +5,11 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import org.springframework.web.multipart.MultipartFile;
 import wassa.mp.startup.CustumUserDetail;
 import wassa.mp.startup.Enumeration.StatutMembre;
 import wassa.mp.startup.Enumeration.StatutTache;
-import wassa.mp.startup.dto.TacheCreationDto;
-import wassa.mp.startup.dto.TacheRenduDto;
-import wassa.mp.startup.dto.TacheResponseDto;
-import wassa.mp.startup.dto.TacheVerificationDto;
+import wassa.mp.startup.dto.*;
 import wassa.mp.startup.exception.NonAutoriseException;
 import wassa.mp.startup.exception.OperationInterditeException;
 import wassa.mp.startup.exception.ResourceNotFoundException;
@@ -37,7 +35,10 @@ public class TacheService {
 
     @Autowired
     private MembreProjetRepository membreProjetRepository;
-
+    @Autowired
+    private StockageFichierService stockageFichierService;
+    @Autowired
+    private NotificationService notificationService;
     @Transactional
     public TacheResponseDto creerTache(
             int projetId,
@@ -87,10 +88,25 @@ public class TacheService {
         tache.setProjet(projet);
         tache.setMembreResponsable(membre);
 
-        Tache sauvegardee = tacheRepository.save(tache);
+        Tache tacheSauvegardee = tacheRepository.save(tache);
+        String alerteMsg = tacheSauvegardee.getProjet().getPorteur().getNomComplet()
+                + " vous a affecté la tâche « "
+                + tacheSauvegardee.getTitre()
+                + " » dans le projet « "
+                + tacheSauvegardee.getProjet().getTitre()
+                + " ».";
+        AlertTacheDto alerteDto = new AlertTacheDto(
+                alerteMsg,
+                "Système",
+                tacheSauvegardee.getProjet().getTitre(),
+                java.time.LocalDateTime.now()
+        );
+        notificationService.notifierUtilisateur(tacheSauvegardee.getMembreResponsable().getUser(), alerteDto);
 
-        return convertirEnDto(sauvegardee);
+
+        return convertirEnDto(tacheSauvegardee);
     }
+    /*
     @Transactional
     public TacheResponseDto soumettreRendu(
             int tacheId,
@@ -142,6 +158,93 @@ public class TacheService {
         tache.setStatut(StatutTache.SOUMIS);
 
         return convertirEnDto(tacheRepository.save(tache));
+    }
+
+     */
+    @Transactional
+    public TacheResponseDto soumettreRendu(
+            int tacheId,
+            String renduDescription,
+            MultipartFile fichier,
+            CustumUserDetail userConnecter
+    ) {
+        Tache tache = tacheRepository.findById(tacheId)
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "La tâche demandée n'existe pas."
+                ));
+
+        // Vérifier la connexion
+        if (userConnecter == null || userConnecter.getUser() == null) {
+            throw new NonAutoriseException(
+                    "Vous devez être connecté pour soumettre un rendu."
+            );
+        }
+
+        // Seul le responsable de la tâche peut soumettre le rendu
+        if (tache.getMembreResponsable().getUser().getId()
+                != userConnecter.getUser().getId()) {
+            throw new NonAutoriseException(
+                    "Seul le responsable de cette tâche peut soumettre son rendu."
+            );
+        }
+
+        // Vérifier le statut de la tâche
+        if (tache.getStatut() != StatutTache.A_FAIRE
+                && tache.getStatut() != StatutTache.A_CORRIGER) {
+            throw new OperationInterditeException(
+                    "Cette tâche ne peut pas être soumise dans son état actuel."
+            );
+        }
+
+        // Vérifier la description
+        if (renduDescription == null || renduDescription.isBlank()) {
+            throw new OperationInterditeException(
+                    "La description du rendu est obligatoire."
+            );
+        }
+
+        // Vérifier le fichier
+        if (fichier == null || fichier.isEmpty()) {
+            throw new OperationInterditeException(
+                    "Veuillez sélectionner un fichier pour le rendu."
+            );
+        }
+
+        // Enregistrer le fichier dans le stockage local
+        String nomFichier = stockageFichierService.enregistrerRendu(fichier);
+
+        try {
+            tache.setRenduDescription(renduDescription.trim());
+            tache.setRenduUrl(nomFichier);
+            tache.setDateSoumission(LocalDateTime.now());
+            tache.setStatut(StatutTache.SOUMIS);
+            Tache tacheSauvegardee = tacheRepository.save(tache);
+            String alerteMsg = tacheSauvegardee.getMembreResponsable().getUser().getNomComplet()
+                    + " a soumis le rendu de la tâche « "
+                    + tacheSauvegardee.getTitre()
+                    + " » dans le projet « "
+                    + tacheSauvegardee.getProjet().getTitre()
+                    + " ».";
+            AlertTacheDto alerteDto = new AlertTacheDto(
+                    alerteMsg,
+                    "Système",
+                    tacheSauvegardee.getProjet().getTitre(),
+                    java.time.LocalDateTime.now()
+            );
+            notificationService.notifierUtilisateur(tacheSauvegardee.getProjet().getPorteur(), alerteDto);
+
+            return convertirEnDto(tacheSauvegardee);
+
+        } catch (RuntimeException e) {
+            // Éviter de conserver le nouveau fichier si l'enregistrement échoue
+            try {
+                stockageFichierService.supprimerPitch(nomFichier);
+            } catch (RuntimeException erreurSuppression) {
+                // Ne pas masquer l'erreur initiale
+            }
+
+            throw e;
+        }
     }
 
     private TacheResponseDto convertirEnDto(Tache tache) {
@@ -214,8 +317,23 @@ public class TacheService {
                         : dto.getCommentaireVerification().trim()
         );
         tache.setDateVerification(LocalDateTime.now());
+        Tache   tacheSauvegardee= tacheRepository.save(tache);
 
-        return convertirEnDto(tacheRepository.save(tache));
+        String alerteMsg = tacheSauvegardee.getProjet().getPorteur().getNomComplet()
+                + " a commenté le rendu de votre tâche « "
+                + tacheSauvegardee.getTitre()
+                + " » dans le projet « "
+                + tacheSauvegardee.getProjet().getTitre()
+                + " ».";
+        AlertTacheDto alerteDto = new AlertTacheDto(
+                alerteMsg,
+                "Système",
+                tacheSauvegardee.getProjet().getTitre(),
+                java.time.LocalDateTime.now()
+        );
+        notificationService.notifierUtilisateur(tacheSauvegardee.getMembreResponsable().getUser(), alerteDto);
+
+        return convertirEnDto(tacheSauvegardee);
     }
     private void verifierPorteurProjet(
             Tache tache,
@@ -263,6 +381,54 @@ public class TacheService {
                 .stream()
                 .map(this::convertirEnDto)
                 .toList();
+    }
+    @Transactional(readOnly = true)
+    public List<TacheResponseDto> obtenirMesTaches(
+            CustumUserDetail userConnecter
+    ) {
+        if (userConnecter == null || userConnecter.getUser() == null) {
+            throw new NonAutoriseException(
+                    "Vous devez être connecté pour consulter vos tâches."
+            );
+        }
+
+        int userId = userConnecter.getUser().getId();
+
+        return tacheRepository
+                .findByMembreResponsable_User_IdOrderByDateCreationDesc(userId)
+                .stream()
+                .map(this::convertirEnDto)
+                .toList();
+    }
+    @Transactional(readOnly = true)
+    public void verifierAccesRendu(
+            String nomFichier,
+            CustumUserDetail userConnecter
+    ) {
+        if (userConnecter == null || userConnecter.getUser() == null) {
+            throw new NonAutoriseException(
+                    "Vous devez être connecté pour consulter ce rendu."
+            );
+        }
+
+        Tache tache = tacheRepository.findByRenduUrl(nomFichier)
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "Aucun rendu ne correspond à ce fichier."
+                ));
+
+        int userId = userConnecter.getUser().getId();
+
+        boolean estPorteur =
+                tache.getProjet().getPorteur().getId() == userId;
+
+        boolean estResponsable =
+                tache.getMembreResponsable().getUser().getId() == userId;
+
+        if (!estPorteur && !estResponsable) {
+            throw new NonAutoriseException(
+                    "Vous n'êtes pas autorisé à consulter ce rendu."
+            );
+        }
     }
 
 }

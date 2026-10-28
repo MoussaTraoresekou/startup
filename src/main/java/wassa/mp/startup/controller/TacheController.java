@@ -8,10 +8,12 @@ import jakarta.validation.Valid;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
+import org.springframework.web.multipart.MultipartFile;
 import wassa.mp.startup.CustumUserDetail;
 import wassa.mp.startup.dto.TacheCreationDto;
 import wassa.mp.startup.dto.TacheRenduDto;
@@ -54,6 +56,7 @@ public class TacheController {
     }
 
     // Soumettre le rendu d'une tâche
+    /*
     @PutMapping("/{tacheId}/soumettre")
     public ResponseEntity<TacheResponseDto> soumettreRendu(
             @PathVariable int tacheId,
@@ -62,6 +65,28 @@ public class TacheController {
 
         return ResponseEntity.ok(
                 tacheService.soumettreRendu(tacheId, dto, userConnecter)
+        );
+    }
+
+     */
+    // Soumettre le rendu d'une tâche avec un fichier
+    @PutMapping(
+            value = "/{tacheId}/soumettre",
+            consumes = MediaType.MULTIPART_FORM_DATA_VALUE
+    )
+    public ResponseEntity<TacheResponseDto> soumettreRendu(
+            @PathVariable int tacheId,
+            @RequestParam("renduDescription") String renduDescription,
+            @RequestParam("fichier") MultipartFile fichier,
+            @AuthenticationPrincipal CustumUserDetail userConnecter) {
+
+        return ResponseEntity.ok(
+                tacheService.soumettreRendu(
+                        tacheId,
+                        renduDescription,
+                        fichier,
+                        userConnecter
+                )
         );
     }
 
