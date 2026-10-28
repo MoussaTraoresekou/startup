@@ -9,10 +9,7 @@ import org.springframework.web.multipart.MultipartFile;
 import wassa.mp.startup.CustumUserDetail;
 import wassa.mp.startup.Enumeration.StatutMembre;
 import wassa.mp.startup.Enumeration.StatutTache;
-import wassa.mp.startup.dto.TacheCreationDto;
-import wassa.mp.startup.dto.TacheRenduDto;
-import wassa.mp.startup.dto.TacheResponseDto;
-import wassa.mp.startup.dto.TacheVerificationDto;
+import wassa.mp.startup.dto.*;
 import wassa.mp.startup.exception.NonAutoriseException;
 import wassa.mp.startup.exception.OperationInterditeException;
 import wassa.mp.startup.exception.ResourceNotFoundException;
@@ -40,6 +37,8 @@ public class TacheService {
     private MembreProjetRepository membreProjetRepository;
     @Autowired
     private StockageFichierService stockageFichierService;
+    @Autowired
+    private NotificationService notificationService;
     @Transactional
     public TacheResponseDto creerTache(
             int projetId,
@@ -89,9 +88,23 @@ public class TacheService {
         tache.setProjet(projet);
         tache.setMembreResponsable(membre);
 
-        Tache sauvegardee = tacheRepository.save(tache);
+        Tache tacheSauvegardee = tacheRepository.save(tache);
+        String alerteMsg = tacheSauvegardee.getProjet().getPorteur().getNomComplet()
+                + " vous a affecté la tâche « "
+                + tacheSauvegardee.getTitre()
+                + " » dans le projet « "
+                + tacheSauvegardee.getProjet().getTitre()
+                + " ».";
+        AlertTacheDto alerteDto = new AlertTacheDto(
+                alerteMsg,
+                "Système",
+                tacheSauvegardee.getProjet().getTitre(),
+                java.time.LocalDateTime.now()
+        );
+        notificationService.notifierUtilisateur(tacheSauvegardee.getMembreResponsable().getUser(), alerteDto);
 
-        return convertirEnDto(sauvegardee);
+
+        return convertirEnDto(tacheSauvegardee);
     }
     /*
     @Transactional
@@ -205,8 +218,20 @@ public class TacheService {
             tache.setRenduUrl(nomFichier);
             tache.setDateSoumission(LocalDateTime.now());
             tache.setStatut(StatutTache.SOUMIS);
-
             Tache tacheSauvegardee = tacheRepository.save(tache);
+            String alerteMsg = tacheSauvegardee.getMembreResponsable().getUser().getNomComplet()
+                    + " a soumis le rendu de la tâche « "
+                    + tacheSauvegardee.getTitre()
+                    + " » dans le projet « "
+                    + tacheSauvegardee.getProjet().getTitre()
+                    + " ».";
+            AlertTacheDto alerteDto = new AlertTacheDto(
+                    alerteMsg,
+                    "Système",
+                    tacheSauvegardee.getProjet().getTitre(),
+                    java.time.LocalDateTime.now()
+            );
+            notificationService.notifierUtilisateur(tacheSauvegardee.getProjet().getPorteur(), alerteDto);
 
             return convertirEnDto(tacheSauvegardee);
 
@@ -292,8 +317,23 @@ public class TacheService {
                         : dto.getCommentaireVerification().trim()
         );
         tache.setDateVerification(LocalDateTime.now());
+        Tache   tacheSauvegardee= tacheRepository.save(tache);
 
-        return convertirEnDto(tacheRepository.save(tache));
+        String alerteMsg = tacheSauvegardee.getProjet().getPorteur().getNomComplet()
+                + " a commenté le rendu de votre tâche « "
+                + tacheSauvegardee.getTitre()
+                + " » dans le projet « "
+                + tacheSauvegardee.getProjet().getTitre()
+                + " ».";
+        AlertTacheDto alerteDto = new AlertTacheDto(
+                alerteMsg,
+                "Système",
+                tacheSauvegardee.getProjet().getTitre(),
+                java.time.LocalDateTime.now()
+        );
+        notificationService.notifierUtilisateur(tacheSauvegardee.getMembreResponsable().getUser(), alerteDto);
+
+        return convertirEnDto(tacheSauvegardee);
     }
     private void verifierPorteurProjet(
             Tache tache,

@@ -5,10 +5,7 @@
     import org.springframework.stereotype.Service;
     import org.springframework.transaction.annotation.Transactional;
 
-    import wassa.mp.startup.dto.AlerteCandidature;
-    import wassa.mp.startup.dto.AlerteMentoratDto;
-    import wassa.mp.startup.dto.AlerteOffreDto;
-    import wassa.mp.startup.dto.NotificationResponseDto;
+    import wassa.mp.startup.dto.*;
     import wassa.mp.startup.model.Notification;
     import wassa.mp.startup.model.User;
     import wassa.mp.startup.repository.NotificationRepository;
@@ -111,6 +108,30 @@
             );
         }
         public void notifierUtilisateur(User destinataire, AlerteOffreDto alerteDto) {
+            // 1. Créer la notification persistante
+            Notification notification = new Notification();
+            notification.setMessage(alerteDto.getMessage());
+            notification.setLu(false);
+            notification.setDateCreation(LocalDateTime.now());
+            notification.setUser(destinataire);
+            // 2. Enregistrer la notification en base de données
+            Notification notificationEnregistree = notificationRepository.save(notification);
+            // 3. Construire le DTO correspondant à la notification enregistrée
+            NotificationResponseDto notificationDto =
+                    new NotificationResponseDto(
+                            notificationEnregistree.getId(),
+                            notificationEnregistree.getMessage(),
+                            notificationEnregistree.isLu(),
+                            notificationEnregistree.getDateCreation()
+                    );
+
+            // 4. Envoyer la notification persistante au destinataire via SSE
+            sseService.envoyerNotificationEnTempsReel(
+                    destinataire.getId(),
+                    notificationDto
+            );
+        }
+        public void notifierUtilisateur(User destinataire, AlertTacheDto alerteDto) {
             // 1. Créer la notification persistante
             Notification notification = new Notification();
             notification.setMessage(alerteDto.getMessage());
