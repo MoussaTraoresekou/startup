@@ -6,6 +6,7 @@ import wassa.mp.startup.Enumeration.StatutTache;
 import wassa.mp.startup.model.Tache;
 
 import java.util.List;
+import java.util.Optional;
 
 @Repository
 public interface TacheRepository extends JpaRepository<Tache, Integer> {
@@ -40,4 +41,8 @@ public interface TacheRepository extends JpaRepository<Tache, Integer> {
             int projetId,
             int membreResponsableId
     );
+    List<Tache> findByMembreResponsable_User_IdOrderByDateCreationDesc(
+            int userId
+    );
+    Optional<Tache> findByRenduUrl(String renduUrl);
 }

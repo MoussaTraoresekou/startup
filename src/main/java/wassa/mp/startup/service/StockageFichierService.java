@@ -292,4 +292,7 @@ public class StockageFichierService {
                     "Impossible de supprimer l'ancien pitch.", e);
         }
     }
+    public String enregistrerRendu(MultipartFile fichier) {
+        return enregistrerPitchAvecDetails(fichier).nomFichier();
+    }
 }

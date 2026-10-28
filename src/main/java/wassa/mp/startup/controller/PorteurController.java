@@ -4,6 +4,7 @@ import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
@@ -344,16 +345,22 @@ public ResponseEntity<byte[]> telechargerLivrable(@PathVariable int projetEtapeI
                 tacheService.verifierRendu(tacheId, dto, userConnecter)
         );
     }
-    @PutMapping("/taches/{tacheId}/soumettre")
+    // Soumettre le rendu d'une tâche avec un fichier
+    @PutMapping(
+            value = "/{tacheId}/soumettre",
+            consumes = MediaType.MULTIPART_FORM_DATA_VALUE
+    )
     public ResponseEntity<TacheResponseDto> soumettreRendu(
             @PathVariable int tacheId,
-            @RequestBody TacheRenduDto dto,
+            @RequestParam("renduDescription") String renduDescription,
+            @RequestParam("fichier") MultipartFile fichier,
             @AuthenticationPrincipal CustumUserDetail userConnecter) {
 
         return ResponseEntity.ok(
                 tacheService.soumettreRendu(
                         tacheId,
-                        dto,
+                        renduDescription,
+                        fichier,
                         userConnecter
                 )
         );
@@ -374,6 +381,15 @@ public ResponseEntity<byte[]> telechargerLivrable(@PathVariable int projetEtapeI
                 );
 
         return ResponseEntity.ok(dashboard);
+    }
+    //les taches qui lui sont affctées
+    @GetMapping("/mes-taches")
+    public ResponseEntity<List<TacheResponseDto>> obtenirMesTaches(
+            @AuthenticationPrincipal CustumUserDetail userConnecter
+    ) {
+        return ResponseEntity.ok(
+                tacheService.obtenirMesTaches(userConnecter)
+        );
     }
 
 }
